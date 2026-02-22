@@ -1,0 +1,12 @@
+name: AstralRecord
+version: ${project.version}
+main: io.github.maaasu.astralRecord.AstralRecord
+api-version: '1.21'
+authors: [ "AstralRecord" ]
+depend: [ProtocolLib]
+
+dependencies:
+  server:
+    ProtocolLib:
+      load: BEFORE
+      required: true
