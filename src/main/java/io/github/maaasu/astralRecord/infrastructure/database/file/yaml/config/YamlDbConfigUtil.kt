@@ -1,6 +1,8 @@
 package io.github.maaasu.astralRecord.infrastructure.database.file.yaml.config
 
 import io.github.maaasu.astralRecord.infrastructure.database.file.FileDatabaseManager
+import io.github.maaasu.astralRecord.infrastructure.logging.LogId
+import io.github.maaasu.astralRecord.infrastructure.logging.Logger
 
 import java.io.File
 
@@ -16,21 +18,21 @@ object YamlDbConfigUtil {
      * @return ロードに成功した場合はキャッシュされた設定、失敗した場合はnull
      */
     fun reload(): YamlDbConfig? {
-        val rootDir = FileDatabaseManager.getInstance().rootDirectory
-        if (rootDir == null) {
-            //LoggerUtil.warn(Messages.FILE_DB_ROOT_PATH_FAILED.message)
-            return null
-        }
+        val rootDir =
+            FileDatabaseManager.getInstance().rootDirectory ?: run {
+                Logger.log(LogId.W_1400)
+                return null
+            }
 
         val configFile = File(rootDir, CONFIG_FILE_NAME)
         if (!configFile.exists()) {
-            //LoggerUtil.warn(Messages.YAML_DB_CONFIG_NOT_FOUND.format(configFile.absolutePath))
+            Logger.log(LogId.W_1401, configFile.absolutePath)
             return null
         }
 
         val config = YamlDbConfigLoader.loadAndCache(configFile)
         if (config != null) {
-            //LoggerUtil.info(Messages.YAML_DB_CONFIG_LOADED.message)
+            Logger.log(LogId.I_1400)
         }
         return config
     }

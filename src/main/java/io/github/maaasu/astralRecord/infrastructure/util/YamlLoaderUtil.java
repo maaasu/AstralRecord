@@ -1,8 +1,8 @@
 package io.github.maaasu.astralRecord.infrastructure.util;
 
 import io.github.maaasu.astralRecord.AstralRecord;
+import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
 import io.github.maaasu.astralRecord.infrastructure.logging.Logger;
-import io.github.maaasu.astralRecord.infrastructure.message.Messages;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
@@ -29,14 +29,13 @@ public final class YamlLoaderUtil {
      */
     public static YamlConfiguration load(File file) {
         if (!file.exists()) {
-            //Logger.warn(Messages.YAML_FILE_NOT_EXISTS.format(file.getAbsolutePath()));
+            Logger.log(LogId.W_1000, file.getAbsolutePath());
             return null;
         }
-
         try {
             return YamlConfiguration.loadConfiguration(file);
         } catch (Exception e) {
-            //LoggerUtil.error(Messages.YAML_FILE_LOAD_FAILED_PATH.format(file.getAbsolutePath()), e);
+            Logger.log(LogId.E_1000, e, file.getAbsolutePath());
             return null;
         }
     }
@@ -70,7 +69,7 @@ public final class YamlLoaderUtil {
         Map<String, YamlConfiguration> result = new HashMap<>();
 
         if (!directory.exists() || !directory.isDirectory()) {
-            //LoggerUtil.warn(Messages.YAML_DIRECTORY_NOT_EXISTS.format(directory.getAbsolutePath()));
+            Logger.log(LogId.W_1000, directory.getAbsolutePath());
             return result;
         }
 
@@ -85,13 +84,13 @@ public final class YamlLoaderUtil {
                     String fileName = file.getName();
                     String nameWithoutExtension = fileName.substring(0, fileName.lastIndexOf('.'));
                     result.put(nameWithoutExtension, yaml);
-                    //LoggerUtil.debug(Messages.YAML_FILE_LOADED.format(fileName));
+                    Logger.log(LogId.D_1000, fileName);
                 } catch (Exception e) {
-                    //LoggerUtil.error(Messages.YAML_FILE_LOAD_FAILED.format(file.getName()), e);
+                    Logger.log(LogId.E_1000, e, file.getName());
                 }
             });
         } catch (IOException e) {
-            //LoggerUtil.error(Messages.YAML_FILE_LOAD_FAILED_PATH.format(directory.getAbsolutePath()), e);
+            Logger.log(LogId.E_1001, e, directory.getAbsolutePath());
         }
 
         return result;
@@ -132,7 +131,7 @@ public final class YamlLoaderUtil {
             yaml.save(file);
             return true;
         } catch (Exception e) {
-            //LoggerUtil.error(Messages.YAML_FILE_SAVE_FAILED.format(file.getAbsolutePath()), e);
+            Logger.log(LogId.E_1002, e, file.getAbsolutePath());
             return false;
         }
     }

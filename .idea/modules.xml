@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/AstralRecord.iml" filepath="$PROJECT_DIR$/AstralRecord.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/AstralRecord.iml" filepath="$PROJECT_DIR$/.idea/AstralRecord.iml" />
     </modules>
   </component>
 </project>

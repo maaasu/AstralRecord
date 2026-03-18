@@ -45,10 +45,6 @@ public class ConnectionPool {
         return hc;
     }
 
-    public Connection getConnection() throws SQLException {
-        return dataSource.getConnection();
-    }
-
     public DataSource getDataSource() {
         return dataSource;
     }

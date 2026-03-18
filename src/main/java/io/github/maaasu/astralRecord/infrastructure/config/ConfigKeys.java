@@ -29,4 +29,10 @@ public final class ConfigKeys {
     public static final String DATABASE_POOL_MAX_POOL_SIZE = "database.pool.maxPoolSize";
     public static final String DATABASE_POOL_MIN_IDLE = "database.pool.minIdle";
     public static final String DATABASE_POOL_CONNECTION_TIMEOUT = "database.pool.connectionTimeout";
+
+    // ログ関連
+    public static final String LOGGING_AUDIT_ENABLED = "logging.audit.enabled";
+    public static final String LOGGING_ENTRY_CONSOLE_LOG_ENTRY = "logging.entry.ConsoleLogEntry";
+    public static final String LOGGING_USE_ANSI_COLORS = "logging.useAnsiColors";
+    public static final String LOGGING_CRAFTY_CONTROLLER_COLORS = "logging.craftyControllerColors";
 }

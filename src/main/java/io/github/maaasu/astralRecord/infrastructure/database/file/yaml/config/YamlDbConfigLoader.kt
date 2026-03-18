@@ -1,5 +1,7 @@
 package io.github.maaasu.astralRecord.infrastructure.database.file.yaml.config
 
+import io.github.maaasu.astralRecord.infrastructure.logging.LogId
+import io.github.maaasu.astralRecord.infrastructure.logging.Logger
 import io.github.maaasu.astralRecord.infrastructure.util.YamlLoaderUtil
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
@@ -87,7 +89,7 @@ object YamlDbConfigLoader {
                 rules = rules
             )
         } catch (e: Exception) {
-            //LoggerUtil.error(Messages.YAML_DB_CONFIG_PARSE_FAILED.format(e.message), e)
+            Logger.log(LogId.E_1400, e, e.message ?: "Unknown error")
             null
         }
     }

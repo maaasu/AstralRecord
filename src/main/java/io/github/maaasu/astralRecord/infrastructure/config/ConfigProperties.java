@@ -24,6 +24,12 @@ public class ConfigProperties {
     private int databasePoolMinIdle;
     private long databasePoolConnectionTimeout;
 
+    // ログ関連
+    private boolean loggingAuditEnabled;
+    private boolean loggingEntryConsoleLogEntryEnabled;
+    private boolean loggingUseAnsiColors;
+    private boolean loggingCraftyControllerColors;
+
     private ConfigProperties() {
         // private constructor for singleton
     }
@@ -64,6 +70,12 @@ public class ConfigProperties {
         this.databasePoolMaxPoolSize = configManager.getConfig().getInt(ConfigKeys.DATABASE_POOL_MAX_POOL_SIZE);
         this.databasePoolMinIdle = configManager.getConfig().getInt(ConfigKeys.DATABASE_POOL_MIN_IDLE);
         this.databasePoolConnectionTimeout = configManager.getConfig().getLong(ConfigKeys.DATABASE_POOL_CONNECTION_TIMEOUT);
+
+        // ログ関連
+        this.loggingAuditEnabled = configManager.getConfig().getBoolean(ConfigKeys.LOGGING_AUDIT_ENABLED, true);
+        this.loggingEntryConsoleLogEntryEnabled = configManager.getConfig().getBoolean(ConfigKeys.LOGGING_ENTRY_CONSOLE_LOG_ENTRY, true);
+        this.loggingUseAnsiColors = configManager.getConfig().getBoolean(ConfigKeys.LOGGING_USE_ANSI_COLORS, true);
+        this.loggingCraftyControllerColors = configManager.getConfig().getBoolean(ConfigKeys.LOGGING_CRAFTY_CONTROLLER_COLORS, false);
     }
 
     /**
@@ -124,6 +136,23 @@ public class ConfigProperties {
 
     public long getDatabasePoolConnectionTimeout() {
         return databasePoolConnectionTimeout;
+    }
+
+    // ログ関連のゲッター
+    public boolean isLoggingAuditEnabled() {
+        return loggingAuditEnabled;
+    }
+
+    public boolean isLoggingEntryConsoleLogEntryEnabled() {
+        return loggingEntryConsoleLogEntryEnabled;
+    }
+
+    public boolean isLoggingUseAnsiColors() {
+        return loggingUseAnsiColors;
+    }
+
+    public boolean isLoggingCraftyControllerColors() {
+        return loggingCraftyControllerColors;
     }
 
     /**

@@ -1,5 +1,8 @@
 package io.github.maaasu.astralRecord.infrastructure.util;
 
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
+
 public class ColorCodeUtil {
     private ColorCodeUtil() {
         // utility class
@@ -38,7 +41,8 @@ public class ColorCodeUtil {
      * @param message   メッセージ
      * @return カラーコードが適用されたメッセージ
      */
-    public static String colorize(String colorCode, String message) {
+    @Contract(pure = true)
+    public static @NonNull String colorize(String colorCode, String message) {
         return colorCode + message + RESET;
     }
 

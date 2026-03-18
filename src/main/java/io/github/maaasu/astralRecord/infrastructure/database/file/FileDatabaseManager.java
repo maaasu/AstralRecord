@@ -2,6 +2,8 @@ package io.github.maaasu.astralRecord.infrastructure.database.file;
 
 import io.github.maaasu.astralRecord.AstralRecord;
 import io.github.maaasu.astralRecord.infrastructure.config.ConfigProperties;
+import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
+import io.github.maaasu.astralRecord.infrastructure.logging.Logger;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -34,7 +36,7 @@ public class FileDatabaseManager {
     private void initialize() {
         String rootPath = ConfigProperties.getInstance().getFileDatabaseRootPath();
         if (rootPath == null || rootPath.isBlank() || rootPath.equals("database.path")) {
-            //LoggerUtil.warn(Messages.FILE_DB_ROOT_PATH_FAILED.getMessage());
+            //Logger.log(LogId.FILE_DB_ROOT_PATH_FAILED);
             return;
         }
         
@@ -51,12 +53,12 @@ public class FileDatabaseManager {
 
         if (!rootDirectory.exists()) {
             if (rootDirectory.mkdirs()) {
-                //LoggerUtil.info(Messages.FILE_DB_ROOT_CREATED.format(rootDirectory.getPath()));
+                //Logger.log(LogId.FILE_DB_ROOT_CREATED, rootDirectory.getPath());
             } else {
-                //LoggerUtil.warn(Messages.FILE_DB_ROOT_CREATE_FAILED.format(rootDirectory.getPath()));
+                //Logger.log(LogId.FILE_DB_ROOT_CREATE_FAILED, rootDirectory.getPath());
             }
         }else {
-            //LoggerUtil.info(Messages.FILE_DB_INITIALIZED.format(rootDirectory.getPath()));
+            //Logger.log(LogId.FILE_DB_INITIALIZED, rootDirectory.getPath());
         }
     }
 
@@ -96,7 +98,7 @@ public class FileDatabaseManager {
         File parent = file.getParentFile();
         if (parent != null && !parent.exists()) {
             if (!parent.mkdirs()) {
-                //LoggerUtil.warn(Messages.FILE_DB_ROOT_CREATE_FAILED.format(parent.getPath()));
+                //Logger.log(LogId.FILE_DB_ROOT_CREATE_FAILED, parent.getPath());
                 return;
             }
         }
@@ -104,7 +106,7 @@ public class FileDatabaseManager {
         try {
             config.save(file);
         } catch (IOException e) {
-            //LoggerUtil.error(Messages.FILE_DB_SAVE_ERROR.format(file.getPath()), e);
+            //Logger.log(LogId.FILE_DB_SAVE_ERROR, e, file.getPath());
         }
     }
 

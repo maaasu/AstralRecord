@@ -1,0 +1,38 @@
+# Plugin Settings
+plugin:
+  debugMode: false
+
+# Database Settings
+database:
+  # SQL Server Settings
+  sqlserver:
+    ipAddress: "localhost"
+    port: 1433
+    database: "AstralRecord"
+    encrypt: true
+    trustServerCertificate: true
+    user: "sa"
+    password: "your_password"
+
+  # File Database Settings
+  file:
+    rootPath: "database"
+
+  # Connection Pool Settings
+  pool:
+    maxPoolSize: 10
+    minIdle: 5
+    connectionTimeout: 30000
+
+# Logging Settings
+logging:
+  # ANSIカラーコードを使用するか否か（標準ターミナル向け）
+  # Crafty Controller を使用する場合は false に設定してください
+  useAnsiColors: false
+  # Crafty Controller の Webコンソール向けカラー表示を有効にするか否か
+  # jansi を回避して FileDescriptor.out へ直接 UTF-8 で書き込みます
+  craftyControllerColors: true
+  audit:
+    enabled: true
+  entry:
+    ConsoleLogEntry: true

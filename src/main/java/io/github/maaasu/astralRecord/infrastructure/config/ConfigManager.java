@@ -1,8 +1,8 @@
 package io.github.maaasu.astralRecord.infrastructure.config;
 
 import io.github.maaasu.astralRecord.AstralRecord;
+import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
 import io.github.maaasu.astralRecord.infrastructure.logging.Logger;
-import io.github.maaasu.astralRecord.infrastructure.message.Messages;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
@@ -52,9 +52,9 @@ public final class ConfigManager {
         if (!dataFolder.exists()) {
             boolean created = dataFolder.mkdirs();
             //if (created)
-                //Logger.info(Messages.DATA_FOLDER_CREATED, dataFolder.getPath());
+                //Logger.log(LogId.DATA_FOLDER_CREATED, dataFolder.getPath());
             //else
-                //Logger.warn(Messages.DATA_FOLDER_CREATE_FAILED);
+                //Logger.log(LogId.DATA_FOLDER_CREATE_FAILED);
         }
 
         // config.yml が存在しない場合は新規作成
@@ -68,7 +68,7 @@ public final class ConfigManager {
         // ConfigPropertiesを初期化
         ConfigProperties.getInstance().initialize();
 
-        //Logger.info(Messages.CONFIG_LOADED);
+        //Logger.log(LogId.CONFIG_LOADED);
     }
 
     /**
@@ -78,17 +78,17 @@ public final class ConfigManager {
         Plugin plugin = AstralRecord.getInstance();
         try (InputStream inputStream = plugin.getResource("config.yml")) {
             if (inputStream == null) {
-                //Logger.warn(Messages.CONFIG_RESOURCE_NOT_FOUND);
+                //Logger.log(LogId.CONFIG_RESOURCE_NOT_FOUND);
                 return;
             }
 
             // リソースファイルをプラグインフォルダにコピー
             Files.copy(inputStream, configFile.toPath());
-            //Logger.info(Messages.CONFIG_DEFAULT_CREATED, configFile.getPath());
+            //Logger.log(LogId.CONFIG_DEFAULT_CREATED, configFile.getPath());
 
         } catch (IOException e) {
-            //Logger.error(Messages.CONFIG_CREATE_FAILED, e);
-            //throw new RuntimeException(Messages.CONFIG_INITIALIZATION_FAILED.getMessage(), e);
+            //Logger.log(LogId.CONFIG_CREATE_FAILED, e);
+            //throw new RuntimeException(LogId.CONFIG_INITIALIZATION_FAILED.getId(), e);
         }
     }
 
@@ -108,7 +108,7 @@ public final class ConfigManager {
             );
             config.setDefaults(defConfig);
         } catch (IOException e) {
-            //Logger.warn(Messages.CONFIG_DEFAULT_LOAD_FAILED, e.getMessage());
+            //Logger.warn(LogId.CONFIG_DEFAULT_LOAD_FAILED, e.getMessage());
         }
     }
 
@@ -117,7 +117,7 @@ public final class ConfigManager {
      */
     public void reload() {
         loadConfig();
-        //Logger.info(Messages.CONFIG_RELOADED);
+        //Logger.log(LogId.CONFIG_RELOADED);
     }
 
     /**
@@ -126,9 +126,9 @@ public final class ConfigManager {
     public void save() {
         try {
             config.save(configFile);
-            //Logger.info(Messages.CONFIG_SAVED);
+            //Logger.log(LogId.CONFIG_SAVED);
         } catch (IOException e) {
-            //Logger.error(Messages.CONFIG_SAVE_FAILED, e);
+            //Logger.log(LogId.CONFIG_SAVE_FAILED, e);
         }
     }
 
