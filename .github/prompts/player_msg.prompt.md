@@ -20,11 +20,11 @@ description: AstralRecord向けのプレイヤーメッセージ定義・出力�
 
 ## 使用クラスと役割
 
-| クラス名                | 役割                                                                                  |
-|:--------------------|:------------------------------------------------------------------------------------|
-| `PlayerMsgResource` | `player.properties` からメッセージを取得するユーティリティ。`getMessage` / `format` メソッドを提供。           |
-| `MsgId`             | メッセージIDを定義する定数クラス（または enum）。`player.properties` のキーと対応。                            |
-| `ColorCodeUtil`     | Minecraftカラーコード（`&` → `§`）の変換ユーティリティ。`PlayerMsgResource` の内部で自動的に使用される。            |
+| クラス名                | 役割                                                                                               |
+|:--------------------|:-------------------------------------------------------------------------------------------------|
+| `PlayerMsgResource` | `player.properties` からメッセージを取得するユーティリティ。`getMessage` / `format` メソッドを提供。                         |
+| `MsgId`             | メッセージIDを定義する定数クラス（または enum）。`player.properties` のキーと対応。                                          |
+| `ColorCodeUtil`     | Minecraftカラーコード（`&` → `§`）の変換ユーティリティ。`PlayerMsgResource` の内部で自動的に使用される。                          |
 | `MessageFormatUtil` | `{0}`, `{1}` 形式のプレースホルダーを `MessageFormat` でフォーマットするユーティリティ。`PlayerMsgResource.format` の内部で使用される。 |
 
 ---
