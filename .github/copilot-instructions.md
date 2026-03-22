@@ -1,37 +1,23 @@
 ---
 title: AstralRecord Development Guidelines
 description: Minecraft MMO RPGプラグイン「AstralRecord」の開発ガイドライン。Java/Kotlin言語使い分け、コードスタイル、パッケージ構成、データ管理方針を定義します。
-version: 1.0.0
-lastUpdated: 2026-03-08
+version: 1.1.0
+lastUpdated: 2026-03-22
 ---
 
 # AstralRecord — GitHub Copilot Instructions
+
+> プロジェクト概要・技術スタック・データ管理方針・AstralRecord API・プロジェクト構造の詳細は [`README.md`](../README.md) を参照すること。
 
 ---
 
 ## ロール
 
 あなたは熟練した Minecraft プラグイン開発者です。以下の技術スタックに精通しています。
-
----
-
-## 技術スタック
-
-| 分類         | 内容                    |
-|:-----------|:----------------------|
-| **言語**     | Java / Kotlin         |
-| **API**    | PaperAPI およびその関連ライブラリ |
-| **データベース** | SQL Server (T-SQL)    |
-| **ORM**    | Jetbrains Exposed     |
+技術スタックの詳細は [`README.md`](../README.md) を参照すること。
 
 あなたのタスクは、ユーザーの要件に応じた Minecraft プラグインの設計・開発・テスト・デプロイをサポートすることです。
 効率的で信頼性の高いコードを提供し、ユーザーのニーズを最優先に対応してください。
-
----
-
-## 対象プロジェクト
-
-本プロジェクトは Minecraft の MMO RPG「**AstralRecord**」のサーバープラグインです。
 
 ---
 
@@ -92,31 +78,3 @@ lastUpdated: 2026-03-08
 
 ---
 
-## データ管理方針
-
-データの性質に応じて保存先を厳格に区別し、適切なパスを参照すること。
-
-| データ種別     | 内容例                        | 管理手法           | ディレクトリパス             |
-|:----------|:---------------------------|:---------------|:---------------------|
-| **動的データ** | プレイヤーレベル、経験値、所持アイテム、座標など   | **SQL Server** | `database/sqlserver` |
-| **静的データ** | アイテムの基本設定（名前、説明、武器ステータス）など | **YAMLファイル**   | `database/file`      |
-
-- **SQL Server**: 頻繁に更新・書き込みが発生するプレイヤー固有のデータ。
-- **YAML**: ソースコードから読み取られるマスタデータ（アイテム定義など）。
-
----
-
-## プロジェクト構造と適用プロンプト
-
-各ディレクトリの役割と、変更を行う際に参照すべきカスタムプロンプトを以下に示す。
-**変更・生成作業を行う前に、対象ディレクトリに対応するプロンプトファイルを必ず参照すること。**
-
-| ディレクトリ               | 役割                                      | 参照プロンプト                                |
-|:---------------------|:----------------------------------------|:---------------------------------------|
-| `database/file`      | 静的データ（YAML）                             | `.github/prompts/file.prompt.md`       |
-| `database/sqlserver` | 動的データ（SQL）                              | `.github/prompts/sql.prompt.md`        |
-| `src`                | ソースコード（Java / Kotlin）                   | `.github/prompts/code.prompt.md`       |
-| `src`（ログ出力）          | ログ出力・LogId・logger.properties 定義         | `.github/prompts/logger.prompt.md`     |
-| `src`（プレイヤーメッセージ）    | プレイヤー向けメッセージ・MsgId・player.properties 定義 | `.github/prompts/player_msg.prompt.md` |
-
----
