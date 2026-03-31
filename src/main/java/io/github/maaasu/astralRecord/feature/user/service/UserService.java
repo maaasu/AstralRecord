@@ -34,21 +34,29 @@ public class UserService {
      * @param globalIp グローバル IP
      */
     public void onAsyncPreLogin(UUID uuid, String mcid, String globalIp) {
-        UserModel existing = userRepository.findByUuid(uuid);
+        UserModel existing;
+        try {
+            existing = userRepository.findByUuid(uuid);
+        } catch (Exception e) {
+            Logger.log(LogId.W_5051, mcid, e.getMessage());
+            return;
+        }
+
         if (existing == null) {
-            registerNewUser(uuid, mcid, globalIp);
+            try {
+                registerNewUser(uuid, mcid, globalIp);
+            } catch (Exception e) {
+                Logger.log(LogId.W_5051, mcid, e.getMessage());
+            }
         } else {
-            // アクティブなアカウントを取得して accountId を更新
-            AccountModel activeAccount = accountService.getAccounts(uuid).stream()
-                .filter(AccountModel::isActive)
-                .findFirst()
-                .orElse(null);
-            // existing.getAccountId() は nullable のため、null の場合はアクティブアカウントを優先する
-            UUID existingAccountId = existing.getAccountId();
-            UUID accountId = activeAccount != null ? activeAccount.getUuid()
-                           : existingAccountId;
-            if (accountId != null) {
-                userRepository.updateJoinInfo(uuid, globalIp, accountId, SystemUser.INSTANCE.getUuid());
+            // user.accountId を選択状態の正とし、不整合時のみアクティブアカウントへフォールバックする
+            AccountModel selectedAccount = accountService.getSelectedAccount(uuid, existing.getAccountId());
+            if (selectedAccount != null) {
+                try {
+                    userRepository.updateJoinInfo(uuid, globalIp, selectedAccount.getUuid(), SystemUser.INSTANCE.getUuid());
+                } catch (Exception e) {
+                    Logger.log(LogId.W_5051, mcid, e.getMessage());
+                }
             }
         }
     }
@@ -72,7 +80,7 @@ public class UserService {
             now,
             now,
             globalIp,
-            null,           // account_id: account 未作成のため NULL
+            null,
             false,
             null,
             true,
@@ -86,10 +94,10 @@ public class UserService {
         userRepository.insert(model);
 
         // 2. account を INSERT（user が存在するため FK_account_user を満たせる）
-        AccountModel account = accountService.createAccount(uuid, mcid, 0);
+        AccountModel account = accountService.createAccount(uuid, mcid, 0, systemUuid);
         UUID accountId = account.getUuid();
 
-        // 3. user.account_id を正しい値に UPDATE
+        // 3. user.account_id を更新し、新規作成した account を選択状態にする
         userRepository.updateAccountId(uuid, accountId, systemUuid);
 
         Logger.log(LogId.I_5050, mcid, uuid);
@@ -102,6 +110,11 @@ public class UserService {
      * @return ユーザーモデル、存在しない場合は null
      */
     public UserModel getUser(UUID uuid) {
-        return userRepository.findByUuid(uuid);
+        try {
+            return userRepository.findByUuid(uuid);
+        } catch (Exception e) {
+            Logger.log(LogId.W_5052, uuid, e.getMessage());
+            return null;
+        }
     }
 }

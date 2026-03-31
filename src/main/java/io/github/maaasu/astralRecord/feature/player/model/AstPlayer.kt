@@ -1,8 +1,10 @@
 package io.github.maaasu.astralRecord.feature.player.model
 
 import io.github.maaasu.astralRecord.feature.account.model.AccountModel
+import io.github.maaasu.astralRecord.feature.buff.model.ActiveBuff
 import io.github.maaasu.astralRecord.feature.player.PlayerMsgId
 import io.github.maaasu.astralRecord.feature.player.PlayerMsgResource
+import io.github.maaasu.astralRecord.feature.status.model.StatusSnapshot
 import io.github.maaasu.astralRecord.feature.user.model.UserModel
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId
 import io.github.maaasu.astralRecord.infrastructure.logging.Logger
@@ -17,12 +19,17 @@ import org.bukkit.entity.Player
  * @property bukkit   Bukkit プレイヤーインスタンス
  * @property user     dbo.user に対応するユーザーデータ（permission 変更時は [applyPermission] 経由で更新すること）
  * @property account  現在アクティブな dbo.account に対応するアカウントデータ
+ *
+ * status 関連の計算結果は [statusSnapshot] に保持し、オンライン中のセッションデータとして扱います。
  */
 data class AstPlayer(
     val bukkit: Player,
     var user: UserModel,
     val account: AccountModel,
 ) {
+    var statusSnapshot: StatusSnapshot = StatusSnapshot.empty()
+    val activeBuffs: MutableList<ActiveBuff> = mutableListOf()
+
     init {
         applyPermission(user)
     }

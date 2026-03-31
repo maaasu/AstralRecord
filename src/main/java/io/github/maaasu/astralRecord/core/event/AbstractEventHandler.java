@@ -29,6 +29,17 @@ public abstract class AbstractEventHandler implements EventHandler {
     public String getHandlerName() {
         return handlerName;
     }
+
+    /**
+     * イベント処理を安全に実行し、例外時は指定の LogId で記録します。
+     */
+    protected void runSafely(Runnable action, LogId errorLogId, Object... logArgs) {
+        try {
+            action.run();
+        } catch (Exception e) {
+            Logger.log(errorLogId, e, logArgs);
+        }
+    }
 }
 
 

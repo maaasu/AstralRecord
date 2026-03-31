@@ -1,19 +1,26 @@
 package io.github.maaasu.astralRecord.feature.user.repository
 
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import io.github.maaasu.astralRecord.feature.user.model.UserModel
-import io.github.maaasu.astralRecord.infrastructure.database.sqlserver.SqlServerManager
-import java.sql.ResultSet
-import java.sql.Timestamp
+import io.github.maaasu.astralRecord.infrastructure.logging.LogId
+import io.github.maaasu.astralRecord.infrastructure.logging.Logger
+import io.github.maaasu.astralRecord.infrastructure.util.ApiRequestUtil
+import java.io.IOException
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 /**
- * dbo.user テーブルへのデータアクセスを担うリポジトリ。
- * 生 JDBC（PreparedStatement）を使用します。
+ * AstralRecord API を通じてユーザーデータへのアクセスを担うリポジトリ。
+ * JDBC による直接 DB アクセスの代わりに HTTP リクエストを使用します。
  */
 class UserRepository {
 
-    private val ds get() = SqlServerManager.getInstance().dataSource
+    private val formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+
 
     // -------------------------------------------------------
     // SELECT
@@ -21,19 +28,34 @@ class UserRepository {
 
     /**
      * UUID でユーザーを取得します（論理削除除外）。
+     * GET /api/user/{uuid}
      */
     fun findByUuid(uuid: UUID): UserModel? {
-        val sql = """
-            SELECT * FROM ${UserTable.TABLE_NAME}
-            WHERE ${UserTable.UUID} = ? AND ${UserTable.IS_DELETED} = 0
-        """.trimIndent()
-        return ds.connection.use { conn ->
-            conn.prepareStatement(sql).use { stmt ->
-                stmt.setString(1, uuid.toString())
-                stmt.executeQuery().use { rs ->
-                    if (rs.next()) rs.toUserModel() else null
+        val path = "/api/user/$uuid"
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path).GET().build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                return when (response.statusCode()) {
+                    200 -> {
+                        Logger.log(LogId.D_5055, uuid)
+                        parseUserModel(response.body())
+                    }
+                    404 -> {
+                        Logger.log(LogId.W_5055, uuid)
+                        null
+                    }
+                    else -> {
+                        val message = "HTTP ${response.statusCode()} for GET $path"
+                        Logger.log(LogId.E_5055, message)
+                        throw IOException("Unexpected status ${response.statusCode()} for GET $path")
+                    }
                 }
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5055, e, e.message ?: "Interrupted while GET $path")
+            throw RuntimeException(e)
         }
     }
 
@@ -43,38 +65,28 @@ class UserRepository {
 
     /**
      * 新規ユーザーを登録します。
+     * POST /api/user
      */
     fun insert(model: UserModel) {
-        val sql = """
-            INSERT INTO ${UserTable.TABLE_NAME} (
-                ${UserTable.UUID}, ${UserTable.MCID},
-                ${UserTable.JOIN_DATE}, ${UserTable.LAST_JOIN_DATE}, ${UserTable.GLOBAL_IP},
-                ${UserTable.ACCOUNT_ID}, ${UserTable.BAN_INDEFINITE}, ${UserTable.BAN_DATE},
-                ${UserTable.KICK_IP}, ${UserTable.PERMISSION}, ${UserTable.CREATED_AT}, ${UserTable.UPDATED_AT},
-                ${UserTable.CREATED_BY}, ${UserTable.UPDATED_BY}, ${UserTable.IS_DELETED}
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """.trimIndent()
-        ds.connection.use { conn ->
-            conn.prepareStatement(sql).use { stmt ->
-                var i = 1
-                stmt.setString(i++, model.uuid.toString())
-                stmt.setString(i++, model.mcid)
-                stmt.setTimestamp(i++, Timestamp.valueOf(model.joinDate))
-                stmt.setTimestamp(i++, Timestamp.valueOf(model.lastJoinDate))
-                stmt.setString(i++, model.globalIp)
-                if (model.accountId != null) stmt.setString(i++, model.accountId.toString())
-                else stmt.setNull(i++, java.sql.Types.OTHER)
-                stmt.setBoolean(i++, model.banIndefinite)
-                stmt.setTimestamp(i++, model.banDate?.let { Timestamp.valueOf(it) })
-                stmt.setBoolean(i++, model.kickIp)
-                stmt.setInt(i++,     model.permission)
-                stmt.setTimestamp(i++, Timestamp.valueOf(model.createdAt))
-                stmt.setTimestamp(i++, Timestamp.valueOf(model.updatedAt))
-                stmt.setString(i++, model.createdBy.toString())
-                stmt.setString(i++, model.updatedBy.toString())
-                stmt.setBoolean(i,   model.isDeleted)
-                stmt.executeUpdate()
+        val path = "/api/user"
+        val body = buildUserJson(model)
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                if (response.statusCode() !in 200..299) {
+                    val message = "HTTP ${response.statusCode()} for POST $path"
+                    Logger.log(LogId.E_5056, message)
+                    throw IOException("Unexpected status ${response.statusCode()} for POST $path")
+                }
+                Logger.log(LogId.D_5056, model.uuid)
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5056, e, e.message ?: "Interrupted while POST $path")
+            throw RuntimeException(e)
         }
     }
 
@@ -85,73 +97,123 @@ class UserRepository {
     /**
      * 選択中アカウント UUID のみを更新します。
      * 新規ユーザー登録フローの STEP3（account 作成後の account_id 紐付け）で使用します。
+     * PUT /api/user/{uuid}
      */
     fun updateAccountId(uuid: UUID, accountId: UUID, updatedBy: UUID) {
-        val sql = """
-            UPDATE ${UserTable.TABLE_NAME}
-            SET ${UserTable.ACCOUNT_ID} = ?,
-                ${UserTable.UPDATED_AT} = ?,
-                ${UserTable.UPDATED_BY} = ?
-            WHERE ${UserTable.UUID} = ?
-        """.trimIndent()
-        val now = LocalDateTime.now()
-        ds.connection.use { conn ->
-            conn.prepareStatement(sql).use { stmt ->
-                stmt.setString(1, accountId.toString())
-                stmt.setTimestamp(2, Timestamp.valueOf(now))
-                stmt.setString(3, updatedBy.toString())
-                stmt.setString(4, uuid.toString())
-                stmt.executeUpdate()
+        val path = "/api/user/$uuid"
+        val body = buildUserUpdateJson(
+            lastJoinDate = null,
+            globalIp = null,
+            accountId = accountId,
+            updatedBy = updatedBy,
+        )
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path)
+                    .PUT(HttpRequest.BodyPublishers.ofString(body))
+                    .build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                if (response.statusCode() !in 200..299) {
+                    val message = "HTTP ${response.statusCode()} for PUT $path"
+                    Logger.log(LogId.E_5057, message)
+                    throw IOException("Unexpected status ${response.statusCode()} for PUT $path")
+                }
+                Logger.log(LogId.D_5057, uuid, accountId)
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5057, e, e.message ?: "Interrupted while PUT $path")
+            throw RuntimeException(e)
         }
     }
 
     /**
      * 最終参加日時・グローバル IP・選択アカウントを更新します。
+     * PUT /api/user/{uuid}
      */
     fun updateJoinInfo(uuid: UUID, ip: String, accountId: UUID, updatedBy: UUID) {
-        val sql = """
-            UPDATE ${UserTable.TABLE_NAME}
-            SET ${UserTable.LAST_JOIN_DATE} = ?,
-                ${UserTable.GLOBAL_IP}      = ?,
-                ${UserTable.ACCOUNT_ID}     = ?,
-                ${UserTable.UPDATED_AT}     = ?,
-                ${UserTable.UPDATED_BY}     = ?
-            WHERE ${UserTable.UUID} = ?
-        """.trimIndent()
-        val now = LocalDateTime.now()
-        ds.connection.use { conn ->
-            conn.prepareStatement(sql).use { stmt ->
-                stmt.setTimestamp(1, Timestamp.valueOf(now))
-                stmt.setString(2, ip)
-                stmt.setString(3, accountId.toString())
-                stmt.setTimestamp(4, Timestamp.valueOf(now))
-                stmt.setString(5, updatedBy.toString())
-                stmt.setString(6, uuid.toString())
-                stmt.executeUpdate()
+        val path = "/api/user/$uuid"
+        val lastJoinDate = LocalDateTime.now().format(formatter)
+        val body = buildUserUpdateJson(
+            lastJoinDate = lastJoinDate,
+            globalIp = ip,
+            accountId = accountId,
+            updatedBy = updatedBy,
+        )
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path)
+                    .PUT(HttpRequest.BodyPublishers.ofString(body))
+                    .build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                if (response.statusCode() !in 200..299) {
+                    val message = "HTTP ${response.statusCode()} for PUT $path"
+                    Logger.log(LogId.E_5058, message)
+                    throw IOException("Unexpected status ${response.statusCode()} for PUT $path")
+                }
+                Logger.log(LogId.D_5058, uuid)
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5058, e, e.message ?: "Interrupted while PUT $path")
+            throw RuntimeException(e)
         }
     }
 
     // -------------------------------------------------------
-    // Mapping
+    // JSON マッピング
     // -------------------------------------------------------
 
-    private fun ResultSet.toUserModel() = UserModel(
-        uuid          = UUID.fromString(getString(UserTable.UUID)),
-        mcid          = getString(UserTable.MCID),
-        joinDate      = getTimestamp(UserTable.JOIN_DATE).toLocalDateTime(),
-        lastJoinDate  = getTimestamp(UserTable.LAST_JOIN_DATE).toLocalDateTime(),
-        globalIp      = getString(UserTable.GLOBAL_IP),
-        accountId     = getString(UserTable.ACCOUNT_ID)?.let { UUID.fromString(it) },
-        banIndefinite = getBoolean(UserTable.BAN_INDEFINITE),
-        banDate       = getTimestamp(UserTable.BAN_DATE)?.toLocalDateTime(),
-        kickIp        = getBoolean(UserTable.KICK_IP),
-        permission    = getInt(UserTable.PERMISSION),
-        createdAt     = getTimestamp(UserTable.CREATED_AT).toLocalDateTime(),
-        updatedAt     = getTimestamp(UserTable.UPDATED_AT).toLocalDateTime(),
-        createdBy     = UUID.fromString(getString(UserTable.CREATED_BY)),
-        updatedBy     = UUID.fromString(getString(UserTable.UPDATED_BY)),
-        isDeleted     = getBoolean(UserTable.IS_DELETED),
-    )
+    private fun buildUserJson(model: UserModel): String {
+        val obj = JsonObject()
+        obj.addProperty("uuid", model.uuid.toString())
+        obj.addProperty("mcid", model.mcid)
+        obj.addProperty("joinDate", model.joinDate.format(formatter))
+        obj.addProperty("lastJoinDate", model.lastJoinDate.format(formatter))
+        obj.addProperty("globalIp", model.globalIp)
+        obj.addProperty("createdBy", model.createdBy.toString())
+        return obj.toString()
+    }
+
+    private fun buildUserUpdateJson(
+        lastJoinDate: String?,
+        globalIp: String?,
+        accountId: UUID?,
+        updatedBy: UUID,
+    ): String {
+        return ApiRequestUtil.buildJsonBody {
+            addProperty("mcid", null as String?)
+            addProperty("lastJoinDate", lastJoinDate)
+            addProperty("globalIp", globalIp)
+            addProperty("accountId", accountId?.toString())
+            addProperty("banIndefinite", null as Boolean?)
+            addProperty("banDate", null as String?)
+            addProperty("kickIp", null as Boolean?)
+            addProperty("permission", null as Number?)
+            addProperty("updatedBy", updatedBy.toString())
+        }
+    }
+
+    private fun parseUserModel(json: String): UserModel {
+        val obj = JsonParser.parseString(json).asJsonObject
+        return UserModel(
+            uuid          = UUID.fromString(obj.get("uuid").asString),
+            mcid          = obj.get("mcid").asString,
+            joinDate      = LocalDateTime.parse(obj.get("joinDate").asString, formatter),
+            lastJoinDate  = LocalDateTime.parse(obj.get("lastJoinDate").asString, formatter),
+            globalIp      = obj.get("globalIp").asString,
+            accountId     = obj.get("accountId")?.takeIf { !it.isJsonNull }?.asString
+                                ?.let { UUID.fromString(it) },
+            banIndefinite = obj.get("banIndefinite").asBoolean,
+            banDate       = obj.get("banDate")?.takeIf { !it.isJsonNull }?.asString
+                                ?.let { LocalDateTime.parse(it, formatter) },
+            kickIp        = obj.get("kickIp").asBoolean,
+            permission    = obj.get("permission").asInt,
+            createdAt     = LocalDateTime.parse(obj.get("createdAt").asString, formatter),
+            updatedAt     = LocalDateTime.parse(obj.get("updatedAt").asString, formatter),
+            createdBy     = UUID.fromString(obj.get("createdBy").asString),
+            updatedBy     = UUID.fromString(obj.get("updatedBy").asString),
+            isDeleted     = obj.get("isDeleted").asBoolean,
+        )
+    }
 }

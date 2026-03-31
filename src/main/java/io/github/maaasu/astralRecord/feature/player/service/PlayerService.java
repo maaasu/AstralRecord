@@ -4,6 +4,7 @@ import io.github.maaasu.astralRecord.feature.account.model.AccountModel;
 import io.github.maaasu.astralRecord.feature.account.service.AccountService;
 import io.github.maaasu.astralRecord.feature.player.AstPlayerCache;
 import io.github.maaasu.astralRecord.feature.player.model.AstPlayer;
+import io.github.maaasu.astralRecord.feature.status.service.StatusService;
 import io.github.maaasu.astralRecord.feature.user.model.UserModel;
 import io.github.maaasu.astralRecord.feature.user.service.UserService;
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
@@ -21,10 +22,12 @@ public class PlayerService {
 
     private final UserService userService;
     private final AccountService accountService;
+    private final StatusService statusService;
 
-    public PlayerService(UserService userService, AccountService accountService) {
+    public PlayerService(UserService userService, AccountService accountService, StatusService statusService) {
         this.userService = userService;
         this.accountService = accountService;
+        this.statusService = statusService;
     }
 
     /**
@@ -43,16 +46,14 @@ public class PlayerService {
             return;
         }
 
-        AccountModel account = accountService.getAccounts(player.getUniqueId()).stream()
-                .filter(AccountModel::isActive)
-                .findFirst()
-                .orElse(null);
+        AccountModel account = accountService.getSelectedAccount(user.getUuid(), user.getAccountId());
         if (account == null) {
             Logger.log(LogId.W_5070, player.getName());
             return;
         }
 
         AstPlayer astPlayer = new AstPlayer(player, user, account);
+        statusService.refreshStatus(astPlayer);
         if (AstPlayerCache.getAll().contains(astPlayer)) {
 
             return;

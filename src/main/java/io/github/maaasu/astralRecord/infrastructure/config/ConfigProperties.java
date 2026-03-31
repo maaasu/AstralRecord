@@ -30,6 +30,12 @@ public class ConfigProperties {
     private boolean loggingUseAnsiColors;
     private boolean loggingCraftyControllerColors;
 
+    // AstralRecord API 関連
+    private String apiBaseUrl;
+    private String apiAuthApiKey;
+    private int apiTimeout;
+    private boolean apiSslVerifyEnabled;
+
     private ConfigProperties() {
         // private constructor for singleton
     }
@@ -76,6 +82,12 @@ public class ConfigProperties {
         this.loggingEntryConsoleLogEntryEnabled = configManager.getConfig().getBoolean(ConfigKeys.LOGGING_ENTRY_CONSOLE_LOG_ENTRY, true);
         this.loggingUseAnsiColors = configManager.getConfig().getBoolean(ConfigKeys.LOGGING_USE_ANSI_COLORS, true);
         this.loggingCraftyControllerColors = configManager.getConfig().getBoolean(ConfigKeys.LOGGING_CRAFTY_CONTROLLER_COLORS, false);
+
+        // AstralRecord API 関連
+        this.apiBaseUrl = configManager.getConfig().getString(ConfigKeys.API_BASE_URL, "https://api.astralrecord.example.com");
+        this.apiAuthApiKey = configManager.getConfig().getString(ConfigKeys.API_AUTH_API_KEY, "");
+        this.apiTimeout = configManager.getConfig().getInt(ConfigKeys.API_TIMEOUT, 30000);
+        this.apiSslVerifyEnabled = configManager.getConfig().getBoolean(ConfigKeys.API_SSL_VERIFY_ENABLED, true);
     }
 
     /**
@@ -169,5 +181,36 @@ public class ConfigProperties {
                 sqlserverUser,
                 sqlserverPassword
         );
+    }
+
+    // AstralRecord API 関連のゲッター
+
+    /**
+     * AstralRecord API のベースURLを返します。
+     */
+    public String getApiBaseUrl() {
+        return apiBaseUrl;
+    }
+
+    /**
+     * AstralRecord API の認証APIキーを返します。
+     */
+    public String getApiAuthApiKey() {
+        return apiAuthApiKey;
+    }
+
+    /**
+     * AstralRecord API のタイムアウト（ミリ秒）を返します。
+     */
+    public int getApiTimeout() {
+        return apiTimeout;
+    }
+
+    /**
+     * AstralRecord API の SSL 証明書検証が有効かどうかを返します。
+     * 自己署名証明書や内部CA証明書を使用している場合は false を返します。
+     */
+    public boolean isApiSslVerifyEnabled() {
+        return apiSslVerifyEnabled;
     }
 }

@@ -4,13 +4,19 @@ import io.github.maaasu.astralRecord.core.CommandRegister;
 import io.github.maaasu.astralRecord.core.event.EventManager;
 import io.github.maaasu.astralRecord.feature.account.repository.AccountRepository;
 import io.github.maaasu.astralRecord.feature.account.service.AccountService;
+import io.github.maaasu.astralRecord.feature.item.service.ItemService;
+import io.github.maaasu.astralRecord.feature.item.service.ItemStackFactory;
+import io.github.maaasu.astralRecord.feature.item.view.ItemStackPacketAdapter;
+import io.github.maaasu.astralRecord.feature.loot.service.LootService;
 import io.github.maaasu.astralRecord.feature.player.event.PlayerJoinEventHandler;
 import io.github.maaasu.astralRecord.feature.player.service.PlayerService;
+import io.github.maaasu.astralRecord.feature.status.service.StatusService;
 import io.github.maaasu.astralRecord.feature.user.event.UserLoginEventHandler;
 import io.github.maaasu.astralRecord.feature.user.repository.UserRepository;
 import io.github.maaasu.astralRecord.feature.user.service.UserService;
 import io.github.maaasu.astralRecord.infrastructure.command.CommandManager;
 import io.github.maaasu.astralRecord.infrastructure.config.ConfigManager;
+import io.github.maaasu.astralRecord.infrastructure.api.ApiHealthChecker;
 import io.github.maaasu.astralRecord.infrastructure.database.file.FileDatabaseManager;
 import io.github.maaasu.astralRecord.infrastructure.database.file.yaml.config.YamlDbConfigUtil;
 import io.github.maaasu.astralRecord.infrastructure.database.sqlserver.SqlServerManager;
@@ -24,6 +30,9 @@ public final class AstralRecord extends JavaPlugin {
     private static AstralRecord instance;
 
     // feature services
+    private ItemService itemService;
+    private LootService lootService;
+    private ItemStackFactory itemStackFactory;
     private UserService userService;
     private PlayerService playerService;
     private EventManager eventManager;
@@ -31,9 +40,12 @@ public final class AstralRecord extends JavaPlugin {
     @Override
     public void onLoad() {
         instance = this;
+        itemService = new ItemService();
+        lootService = new LootService();
+        itemStackFactory = new ItemStackFactory(lootService);
         // CommandManagerの初期化はPaper Lifecycle APIの制約上、onLoad()内で行う
         // コマンドをここで登録し、initialize()を呼び出す
-        new CommandRegister(this);
+        new CommandRegister(this, itemService, itemStackFactory);
         CommandManager.getInstance().initialize(this);
     }
 
@@ -93,6 +105,9 @@ public final class AstralRecord extends JavaPlugin {
             // YamlDB設定の初期化
             YamlDbConfigUtil.INSTANCE.reload();
 
+            // AstralRecord API 疎通確認（非同期）
+            ApiHealthChecker.checkAsync();
+
             return true;
         }catch (Exception e) {
             Logger.error("Infrastructure setup failed.", e);
@@ -112,8 +127,21 @@ public final class AstralRecord extends JavaPlugin {
         UserRepository userRepository = new UserRepository();
         userService = new UserService(userRepository, accountService);
 
+        // status
+        StatusService statusService = new StatusService();
+
         // player
-        playerService = new PlayerService(userService, accountService);
+        playerService = new PlayerService(userService, accountService, statusService);
+
+        // loot → item: loot を先にロードし、完了後に item をロード（bundle の lootTableId 解決に必要）
+        getServer().getScheduler().runTaskAsynchronously(this, () -> {
+            lootService.loadAll();
+            itemService.loadAll();
+        });
+
+        // item: ProtocolLib パケットアダプタ（icon 差し替え）登録
+        ItemStackPacketAdapter packetAdapter = new ItemStackPacketAdapter(this);
+        packetAdapter.register();
 
         // event manager
         eventManager = new EventManager(this);
@@ -138,5 +166,14 @@ public final class AstralRecord extends JavaPlugin {
      */
     public static AstralRecord getInstance() {
         return instance;
+    }
+
+    /**
+     * {@link ItemStackFactory} のインスタンスを取得します。
+     *
+     * @return ItemStackFactory
+     */
+    public ItemStackFactory getItemStackFactory() {
+        return itemStackFactory;
     }
 }

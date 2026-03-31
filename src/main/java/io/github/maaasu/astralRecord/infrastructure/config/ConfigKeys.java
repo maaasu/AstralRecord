@@ -35,4 +35,10 @@ public final class ConfigKeys {
     public static final String LOGGING_ENTRY_CONSOLE_LOG_ENTRY = "logging.entry.ConsoleLogEntry";
     public static final String LOGGING_USE_ANSI_COLORS = "logging.useAnsiColors";
     public static final String LOGGING_CRAFTY_CONTROLLER_COLORS = "logging.craftyControllerColors";
+
+    // AstralRecord API 関連
+    public static final String API_BASE_URL = "api.baseUrl";
+    public static final String API_AUTH_API_KEY = "api.auth.apiKey";
+    public static final String API_TIMEOUT = "api.timeout";
+    public static final String API_SSL_VERIFY_ENABLED = "api.ssl.verifyEnabled";
 }

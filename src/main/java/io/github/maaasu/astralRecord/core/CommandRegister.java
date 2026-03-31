@@ -5,6 +5,12 @@ import io.github.maaasu.astralRecord.feature.player.command.TempCommand;
 import io.github.maaasu.astralRecord.feature.player.command.TempTabCompleter;
 import io.github.maaasu.astralRecord.feature.player.command.TestCommand;
 import io.github.maaasu.astralRecord.feature.player.command.TestTabCompleter;
+import io.github.maaasu.astralRecord.feature.item.command.ItemCommand;
+import io.github.maaasu.astralRecord.feature.item.command.ItemTabCompleter;
+import io.github.maaasu.astralRecord.feature.item.service.ItemService;
+import io.github.maaasu.astralRecord.feature.item.service.ItemStackFactory;
+import io.github.maaasu.astralRecord.feature.status.command.StatusCommand;
+import io.github.maaasu.astralRecord.feature.status.command.StatusTabCompleter;
 import io.github.maaasu.astralRecord.core.command.ReloadCommand;
 import io.github.maaasu.astralRecord.infrastructure.command.CommandManager;
 
@@ -14,9 +20,13 @@ import io.github.maaasu.astralRecord.infrastructure.command.CommandManager;
  */
 public class CommandRegister {
     private final AstralRecord instance;
+    private final ItemService itemService;
+    private final ItemStackFactory itemStackFactory;
 
-    public CommandRegister(AstralRecord plugin) {
+    public CommandRegister(AstralRecord plugin, ItemService itemService, ItemStackFactory itemStackFactory) {
         this.instance = plugin;
+        this.itemService = itemService;
+        this.itemStackFactory = itemStackFactory;
         registerCommand();
     }
 
@@ -31,6 +41,12 @@ public class CommandRegister {
 
         // /temp — 管理者向けテンポラリコマンド（permission 99 以上必要）
         cm.registerCommand("temp", new TempCommand(), new TempTabCompleter());
+
+        // /status — 基本ステータス表示
+        cm.registerCommand("status", new StatusCommand(), new StatusTabCompleter());
+
+        // /item — アイテム定義の参照・取得
+        cm.registerCommand("item", new ItemCommand(itemService, itemStackFactory), new ItemTabCompleter(itemService));
 
         // /astreload — プラグインホットリロード（permission 99 以上必要）
         cm.registerCommand("astreload", new ReloadCommand());

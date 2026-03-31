@@ -1,15 +1,11 @@
 package io.github.maaasu.astralRecord.feature.player.event;
 
 import io.github.maaasu.astralRecord.core.event.AbstractEventHandler;
-import io.github.maaasu.astralRecord.feature.player.AstPlayerCache;
-import io.github.maaasu.astralRecord.feature.player.PlayerMsgId;
 import io.github.maaasu.astralRecord.feature.player.model.AstPlayer;
 import io.github.maaasu.astralRecord.feature.player.service.PlayerService;
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
-import io.github.maaasu.astralRecord.infrastructure.logging.Logger;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -21,7 +17,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
  * {@link AstPlayer#applyPermission(io.github.maaasu.astralRecord.feature.user.model.UserModel)} が行います。
  * ログアウト時は {@link PlayerService#onPlayerQuit(org.bukkit.entity.Player)} でキャッシュを削除します。
  */
-public class PlayerJoinEventHandler extends AbstractEventHandler implements Listener {
+public class PlayerJoinEventHandler extends AbstractEventHandler {
 
     private final PlayerService playerService;
 
@@ -31,20 +27,12 @@ public class PlayerJoinEventHandler extends AbstractEventHandler implements List
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerJoin(PlayerJoinEvent event) {
-        try {
-            playerService.onPlayerJoin(event.getPlayer());
-        } catch (Exception e) {
-            Logger.log(LogId.E_5070, e, event.getPlayer().getName());
-        }
+        runSafely(() -> playerService.onPlayerJoin(event.getPlayer()), LogId.E_5070, event.getPlayer().getName());
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerQuit(PlayerQuitEvent event) {
-        try {
-            playerService.onPlayerQuit(event.getPlayer());
-        } catch (Exception e) {
-            Logger.log(LogId.E_5070, e, event.getPlayer().getName());
-        }
+        runSafely(() -> playerService.onPlayerQuit(event.getPlayer()), LogId.E_5070, event.getPlayer().getName());
     }
 }
 

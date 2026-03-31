@@ -24,6 +24,20 @@ database:
     minIdle: 5
     connectionTimeout: 30000
 
+# AstralRecord API Settings
+api:
+  # APIのベースURL
+  baseUrl: "https://api.astralrecord.example.com"
+  # APIキー認証情報
+  auth:
+    apiKey: "your_api_key"
+  # タイムアウト設定（ミリ秒）
+  timeout: 30000
+  ssl:
+    # SSL証明書の検証を行うか否か
+    # 自己署名証明書や内部CA証明書を使用している場合は false に設定してください
+    verifyEnabled: true
+
 # Logging Settings
 logging:
   # ANSIカラーコードを使用するか否か（標準ターミナル向け）

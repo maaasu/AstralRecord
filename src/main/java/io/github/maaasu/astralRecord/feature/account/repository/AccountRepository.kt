@@ -1,20 +1,29 @@
 package io.github.maaasu.astralRecord.feature.account.repository
 
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import io.github.maaasu.astralRecord.feature.account.model.AccountMode
 import io.github.maaasu.astralRecord.feature.account.model.AccountModel
-import io.github.maaasu.astralRecord.infrastructure.database.sqlserver.SqlServerManager
-import java.sql.ResultSet
-import java.sql.Timestamp
+import io.github.maaasu.astralRecord.infrastructure.logging.LogId
+import io.github.maaasu.astralRecord.infrastructure.logging.Logger
+import io.github.maaasu.astralRecord.infrastructure.util.ApiRequestUtil
+import java.io.IOException
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.UUID
 
 /**
- * dbo.account テーブルへのデータアクセスを担うリポジトリ。
- * 生 JDBC（PreparedStatement）を使用します。
+ * AstralRecord API を通じてアカウントデータへのアクセスを担うリポジトリ。
+ * JDBC による直接 DB アクセスの代わりに HTTP リクエストを使用します。
  */
 class AccountRepository {
 
-    private val ds get() = SqlServerManager.getInstance().dataSource
+    private val formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
 
     // -------------------------------------------------------
     // SELECT
@@ -22,39 +31,72 @@ class AccountRepository {
 
     /**
      * プレイヤー UUID に紐付くアカウント一覧を取得します（論理削除除外）。
+     * GET /api/account?user_id={userId}
      */
     fun findByUserId(userId: UUID): List<AccountModel> {
-        val sql = """
-            SELECT * FROM ${AccountTable.TABLE_NAME}
-            WHERE ${AccountTable.USER_ID} = ? AND ${AccountTable.IS_DELETED} = 0
-        """.trimIndent()
-        return ds.connection.use { conn ->
-            conn.prepareStatement(sql).use { stmt ->
-                stmt.setString(1, userId.toString())
-                stmt.executeQuery().use { rs ->
-                    val list = mutableListOf<AccountModel>()
-                    while (rs.next()) list.add(rs.toAccountModel())
-                    list
+        val path = "/api/account?user_id=$userId"
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path).GET().build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                return when (response.statusCode()) {
+                    200 -> {
+                        val list = parseAccountList(response.body())
+                        Logger.log(LogId.D_5150, userId, list.size)
+                        list
+                    }
+                    404 -> {
+                        Logger.log(LogId.W_5150, userId)
+                        emptyList()
+                    }
+                    else -> {
+                        Logger.log(LogId.E_5150, "HTTP ${response.statusCode()} for GET $path")
+                        throw IOException("Unexpected status ${response.statusCode()} for GET $path")
+                    }
                 }
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5150, e)
+            throw RuntimeException(e)
+        } catch (e: IOException) {
+            Logger.log(LogId.E_5150, e)
+            throw e
         }
     }
 
     /**
      * アカウント UUID でアカウントを取得します（論理削除除外）。
+     * GET /api/account/{uuid}
      */
     fun findByUuid(uuid: UUID): AccountModel? {
-        val sql = """
-            SELECT * FROM ${AccountTable.TABLE_NAME}
-            WHERE ${AccountTable.UUID} = ? AND ${AccountTable.IS_DELETED} = 0
-        """.trimIndent()
-        return ds.connection.use { conn ->
-            conn.prepareStatement(sql).use { stmt ->
-                stmt.setString(1, uuid.toString())
-                stmt.executeQuery().use { rs ->
-                    if (rs.next()) rs.toAccountModel() else null
+        val path = "/api/account/$uuid"
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path).GET().build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                return when (response.statusCode()) {
+                    200 -> {
+                        Logger.log(LogId.D_5151, uuid)
+                        parseAccountModel(response.body())
+                    }
+                    404 -> {
+                        Logger.log(LogId.W_5151, uuid)
+                        null
+                    }
+                    else -> {
+                        Logger.log(LogId.E_5151, "HTTP ${response.statusCode()} for GET $path")
+                        throw IOException("Unexpected status ${response.statusCode()} for GET $path")
+                    }
                 }
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5151, e)
+            throw RuntimeException(e)
+        } catch (e: IOException) {
+            Logger.log(LogId.E_5151, e)
+            throw e
         }
     }
 
@@ -63,33 +105,33 @@ class AccountRepository {
     // -------------------------------------------------------
 
     /**
-     * 新規アカウントを登録します。
+     * 新規アカウントを登録します。登録されたアカウント情報（サーバー生成 UUID を含む）を返します。
+     * POST /api/account
      */
-    fun insert(model: AccountModel) {
-        val sql = """
-            INSERT INTO ${AccountTable.TABLE_NAME} (
-                ${AccountTable.UUID}, ${AccountTable.USER_ID}, ${AccountTable.ACCOUNT_NAME},
-                ${AccountTable.SLOT_INDEX}, ${AccountTable.IS_ACTIVE}, ${AccountTable.MODE},
-                ${AccountTable.CREATED_AT}, ${AccountTable.UPDATED_AT},
-                ${AccountTable.CREATED_BY}, ${AccountTable.UPDATED_BY}, ${AccountTable.IS_DELETED}
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """.trimIndent()
-        ds.connection.use { conn ->
-            conn.prepareStatement(sql).use { stmt ->
-                var i = 1
-                stmt.setString(i++, model.uuid.toString())
-                stmt.setString(i++, model.userId.toString())
-                stmt.setString(i++, model.accountName)
-                stmt.setInt(i++,    model.slotIndex)
-                stmt.setBoolean(i++, model.isActive)
-                stmt.setByte(i++,   model.mode.value)
-                stmt.setTimestamp(i++, Timestamp.valueOf(model.createdAt))
-                stmt.setTimestamp(i++, Timestamp.valueOf(model.updatedAt))
-                stmt.setString(i++, model.createdBy.toString())
-                stmt.setString(i++, model.updatedBy.toString())
-                stmt.setBoolean(i,  model.isDeleted)
-                stmt.executeUpdate()
+    fun insert(model: AccountModel): AccountModel {
+        val path = "/api/account"
+        val body = buildAccountJson(model)
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path)
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                if (response.statusCode() !in 200..299) {
+                    Logger.log(LogId.E_5152, "HTTP ${response.statusCode()} for POST $path")
+                    throw IOException("Unexpected status ${response.statusCode()} for POST $path")
+                }
+                val created = parseAccountModel(response.body())
+                Logger.log(LogId.D_5152, created.uuid)
+                return created
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5152, e)
+            throw RuntimeException(e)
+        } catch (e: IOException) {
+            Logger.log(LogId.E_5152, e)
+            throw e
         }
     }
 
@@ -99,59 +141,89 @@ class AccountRepository {
 
     /**
      * 指定プレイヤーの選択中アカウントを切り替えます。
-     * 既存の is_active を全て false → 対象を true に設定します。
+     * PUT /api/account/{targetUuid}
      */
     fun switchActiveAccount(userId: UUID, targetUuid: UUID, updatedBy: UUID) {
-        val now = Timestamp.valueOf(LocalDateTime.now())
-        ds.connection.use { conn ->
-            // 全アカウントを非アクティブ
-            conn.prepareStatement(
-                """
-                UPDATE ${AccountTable.TABLE_NAME}
-                SET ${AccountTable.IS_ACTIVE}  = 0,
-                    ${AccountTable.UPDATED_AT} = ?,
-                    ${AccountTable.UPDATED_BY} = ?
-                WHERE ${AccountTable.USER_ID} = ?
-                """.trimIndent()
-            ).use { stmt ->
-                stmt.setTimestamp(1, now)
-                stmt.setString(2, updatedBy.toString())
-                stmt.setString(3, userId.toString())
-                stmt.executeUpdate()
+        val path = "/api/account/$targetUuid"
+        val body = buildSwitchActiveAccountJson(updatedBy)
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path)
+                    .PUT(HttpRequest.BodyPublishers.ofString(body))
+                    .build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                if (response.statusCode() !in 200..299) {
+                    Logger.log(LogId.E_5153, "HTTP ${response.statusCode()} for PUT $path")
+                    throw IOException("Unexpected status ${response.statusCode()} for PUT $path")
+                }
+                Logger.log(LogId.D_5153, userId, targetUuid)
             }
-            // 対象アカウントをアクティブ
-            conn.prepareStatement(
-                """
-                UPDATE ${AccountTable.TABLE_NAME}
-                SET ${AccountTable.IS_ACTIVE}  = 1,
-                    ${AccountTable.UPDATED_AT} = ?,
-                    ${AccountTable.UPDATED_BY} = ?
-                WHERE ${AccountTable.UUID} = ?
-                """.trimIndent()
-            ).use { stmt ->
-                stmt.setTimestamp(1, now)
-                stmt.setString(2, updatedBy.toString())
-                stmt.setString(3, targetUuid.toString())
-                stmt.executeUpdate()
-            }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5153, e)
+            throw RuntimeException(e)
+        } catch (e: IOException) {
+            Logger.log(LogId.E_5153, e)
+            throw e
         }
     }
 
     // -------------------------------------------------------
-    // Mapping
+    // JSON マッピング
     // -------------------------------------------------------
 
-    private fun ResultSet.toAccountModel() = AccountModel(
-        uuid        = UUID.fromString(getString(AccountTable.UUID)),
-        userId      = UUID.fromString(getString(AccountTable.USER_ID)),
-        accountName = getString(AccountTable.ACCOUNT_NAME),
-        slotIndex   = getInt(AccountTable.SLOT_INDEX),
-        isActive    = getBoolean(AccountTable.IS_ACTIVE),
-        mode        = AccountMode.fromValue(getByte(AccountTable.MODE)),
-        createdAt   = getTimestamp(AccountTable.CREATED_AT).toLocalDateTime(),
-        updatedAt   = getTimestamp(AccountTable.UPDATED_AT).toLocalDateTime(),
-        createdBy   = UUID.fromString(getString(AccountTable.CREATED_BY)),
-        updatedBy   = UUID.fromString(getString(AccountTable.UPDATED_BY)),
-        isDeleted   = getBoolean(AccountTable.IS_DELETED),
+    private fun buildAccountJson(model: AccountModel): String {
+        val obj = JsonObject()
+        obj.addProperty("userId", model.userId.toString())
+        obj.addProperty("accountName", model.accountName)
+        obj.addProperty("slotIndex", model.slotIndex)
+        obj.addProperty("mode", model.mode.value.toInt())
+        obj.addProperty("createdBy", model.createdBy.toString())
+        return obj.toString()
+    }
+
+    private fun buildSwitchActiveAccountJson(updatedBy: UUID): String {
+        return ApiRequestUtil.buildJsonBody {
+            addProperty("accountName", null as String?)
+            addProperty("isActive", true)
+            addProperty("mode", null as Number?)
+            addProperty("updatedBy", updatedBy.toString())
+        }
+    }
+
+    private fun parseAccountModel(json: String): AccountModel {
+        val obj = JsonParser.parseString(json).asJsonObject
+        return obj.toAccountModel()
+    }
+
+    private fun parseAccountList(json: String): List<AccountModel> {
+        val arr: JsonArray = JsonParser.parseString(json).asJsonArray
+        return arr.map { it.asJsonObject.toAccountModel() }
+    }
+
+    private fun parseApiDateTime(value: String): LocalDateTime {
+        return try {
+            LocalDateTime.parse(value, formatter)
+        } catch (_: DateTimeParseException) {
+            try {
+                OffsetDateTime.parse(value, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toLocalDateTime()
+            } catch (e: DateTimeParseException) {
+                throw DateTimeParseException("Unsupported datetime format: $value", value, e.errorIndex, e)
+            }
+        }
+    }
+
+    private fun JsonObject.toAccountModel() = AccountModel(
+        uuid        = UUID.fromString(get("uuid").asString),
+        userId      = UUID.fromString(get("userId").asString),
+        accountName = get("accountName").asString,
+        slotIndex   = get("slotIndex").asInt,
+        isActive    = get("isActive").asBoolean,
+        mode        = AccountMode.fromValue(get("mode").asByte),
+        createdAt   = parseApiDateTime(get("createdAt").asString),
+        updatedAt   = parseApiDateTime(get("updatedAt").asString),
+        createdBy   = UUID.fromString(get("createdBy").asString),
+        updatedBy   = UUID.fromString(get("updatedBy").asString),
+        isDeleted   = get("isDeleted").asBoolean,
     )
 }

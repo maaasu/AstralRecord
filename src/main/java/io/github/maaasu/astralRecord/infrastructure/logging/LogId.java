@@ -246,6 +246,25 @@ public enum LogId {
     E_1550(1550),
     // endregion
 
+    // region /infrastructure/api/ApiHealthChecker.java
+    /**
+     * AstralRecord API の疎通確認を開始します: %s
+     */
+    I_1600(1600),
+    /**
+     * AstralRecord API の疎通確認に成功しました (HTTP %d)
+     */
+    I_1601(1601),
+    /**
+     * AstralRecord API の疎通確認でエラーレスポンスが返されました (HTTP %d)
+     */
+    W_1600(1600),
+    /**
+     * AstralRecord API の疎通確認に失敗しました: %s
+     */
+    E_1600(1600),
+    // endregion
+
     // ==================== feature ====================
 
     // region /feature/user/event/UserLoginEventHandler.java
@@ -255,11 +274,58 @@ public enum LogId {
     E_5000(5000),
     // endregion
 
+    // region /feature/user/repository/UserRepository.kt
+    /**
+     * ユーザーを取得しました (API): %s
+     */
+    D_5055(5055),
+    /**
+     * ユーザーが見つかりませんでした (API): %s
+     */
+    W_5055(5055),
+    /**
+     * ユーザーの取得に失敗しました (API): %s
+     */
+    E_5055(5055),
+    /**
+     * ユーザーを登録しました (API): %s
+     */
+    D_5056(5056),
+    /**
+     * ユーザーの登録に失敗しました (API): %s
+     */
+    E_5056(5056),
+    /**
+     * アカウントIDを更新しました (API): %s → %s
+     */
+    D_5057(5057),
+    /**
+     * アカウントIDの更新に失敗しました (API): %s
+     */
+    E_5057(5057),
+    /**
+     * ログイン情報を更新しました (API): %s
+     */
+    D_5058(5058),
+    /**
+     * ログイン情報の更新に失敗しました (API): %s
+     */
+    E_5058(5058),
+    // endregion
+
     // region /feature/user/service/UserService.java
     /**
      * 新規ユーザーを登録しました: %s (%s)
      */
     I_5050(5050),
+    /**
+     * ログイン前処理をスキップしました（API一時障害）: %s (%s)
+     */
+    W_5051(5051),
+    /**
+     * ユーザー取得をスキップしました（API一時障害）: %s (%s)
+     */
+    W_5052(5052),
     // endregion
 
     // region /feature/player/event/PlayerJoinEventHandler.java
@@ -286,6 +352,166 @@ public enum LogId {
      * アカウントを切り替えました: %s (user=%s)
      */
     I_5101(5101),
+    // endregion
+
+    // region /feature/account/repository/AccountRepository.kt
+    /**
+     * アカウント一覧を取得しました (API): userId=%s (%d件)
+     */
+    D_5150(5150),
+    /**
+     * アカウントが見つかりませんでした (API): userId=%s
+     */
+    W_5150(5150),
+    /**
+     * アカウント一覧の取得に失敗しました (API): %s
+     */
+    E_5150(5150),
+    /**
+     * アカウントを取得しました (API): %s
+     */
+    D_5151(5151),
+    /**
+     * アカウントが見つかりませんでした (API): %s
+     */
+    W_5151(5151),
+    /**
+     * アカウントの取得に失敗しました (API): %s
+     */
+    E_5151(5151),
+    /**
+     * アカウントを登録しました (API): %s
+     */
+    D_5152(5152),
+    /**
+     * アカウントの登録に失敗しました (API): %s
+     */
+    E_5152(5152),
+    /**
+     * アクティブアカウントを切り替えました (API): userId=%s → accountId=%s
+     */
+    D_5153(5153),
+    /**
+     * アクティブアカウントの切り替えに失敗しました (API): %s
+     */
+    E_5153(5153),
+    // endregion
+
+    // region /feature/item/repository/ItemRepository.kt /feature/item/service/ItemService.java
+    /**
+     * アイテムを取得しました (API): category=%s, id=%s
+     */
+    D_5200(5200),
+    /**
+     * アイテムを使用しました: player=%s, item=%s, applied=%d, skipped=%d
+     */
+    I_5200(5200),
+    /**
+     * カテゴリのアイテムを一括ロードしました (API): category=%s (%d件)
+     */
+    I_5202(5202),
+    /**
+     * 全カテゴリのアイテムを初期ロードしました: 合計 %d件
+     */
+    I_5203(5203),
+    /**
+     * アイテムが見つかりませんでした (API): category=%s, id=%s
+     */
+    W_5200(5200),
+    /**
+     * 消耗品ではないアイテムを使用しようとしました: item=%s, category=%s
+     */
+    W_5201(5201),
+    /**
+     * consumable 定義が存在しません: item=%s
+     */
+    W_5202(5202),
+    /**
+     * 未対応の消耗品効果タイプを検出しました: item=%s
+     */
+    W_5203(5203),
+    /**
+     * BUFF 効果に buffId が設定されていません: item=%s
+     */
+    W_5204(5204),
+    /**
+     * STATUS 効果に status が設定されていません: item=%s
+     */
+    W_5205(5205),
+    /**
+     * STATUS 効果の status が不正です: item=%s, status=%s
+     */
+    W_5206(5206),
+    /**
+     * STATUS 効果の対象が未対応です: item=%s, status=%s
+     */
+    W_5207(5207),
+    /**
+     * 未対応カテゴリを指定しました (API): category=%s
+     */
+    W_5208(5208),
+    /**
+     * BUFF 効果を適用しました: item=%s, buffId=%s, active=%d
+     */
+    D_5201(5201),
+    /**
+     * カテゴリのアイテム一覧を取得しました (API): category=%s (%d件)
+     */
+    D_5202(5202),
+    /**
+     * アイテム取得に失敗しました (API): %s
+     */
+    E_5200(5200),
+    /**
+     * カテゴリのアイテム一括ロードに失敗しました: category=%s
+     */
+    E_5201(5201),
+    /**
+     * カテゴリのアイテム一括ロードに失敗しました (Service): category=%s
+     */
+    E_5202(5202),
+    // endregion
+
+    // region /feature/item/service/ItemStackFactory.java /feature/item/view/ItemStackPacketAdapter.java 5210-5219
+    /**
+     * ItemStackPacketAdapter を登録しました
+     */
+    I_5210(5210),
+    /**
+     * 不明な icon Material 名です: %s
+     */
+    W_5210(5210),
+    /**
+     * ItemStack テンプレートキャッシュをクリアしました
+     */
+    D_5210(5210),
+    /**
+     * ItemStack テンプレートを構築しました: category=%s, id=%s
+     */
+    D_5211(5211),
+    // endregion
+
+    // region /feature/loot/repository/LootRepository.kt /feature/loot/service/LootService.java 5300-5319
+    /**
+     * ルートテーブルを取得しました (API): id=%s
+     */
+    D_5300(5300),
+    /**
+     * ルートテーブルが見つかりませんでした (API): id=%s
+     */
+    W_5300(5300),
+    /**
+     * 全ルートテーブルをロードしました: %d件
+     */
+    I_5300(5300),
+    /**
+     * ルートテーブル取得に失敗しました (API): %s
+     */
+    E_5300(5300),
+    /**
+     * ルートテーブル一括ロードに失敗しました (Service): %s
+     */
+    E_5301(5301),
     // endregion
 
     ;
