@@ -33,8 +33,12 @@ public class ItemTabCompleter extends AstTabCompleter {
             return itemService.getSupportedCategories();
         }
 
+        if (args.length == 3 && args[0].equalsIgnoreCase("load")) {
+            return itemService.getLoadedItemIds();
+        }
+
         if (args.length == 2 && args[0].equalsIgnoreCase("list")) {
-            return itemService.getSupportedCategories();
+            return itemService.getLoadedCategories();
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("info")) {
