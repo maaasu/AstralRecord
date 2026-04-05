@@ -241,6 +241,7 @@ class ItemRepository {
             handType = ItemEquipmentHandType.fromApiValue(parseStringOrNull(equipmentObj, "handType")),
             requiredLevel = equipmentObj.get("requiredLevel")?.asInt ?: 0,
             requiredClasses = parseStringList(equipmentObj.getAsJsonArray("requiredClasses")),
+            setId = parseStringOrNull(equipmentObj, "setId"),
             stats = stats,
             durability = durability,
             onUse = onUse,

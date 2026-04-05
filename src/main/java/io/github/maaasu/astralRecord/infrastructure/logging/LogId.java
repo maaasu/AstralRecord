@@ -514,6 +514,52 @@ public enum LogId {
     E_5301(5301),
     // endregion
 
+    // region /feature/item/repository/SetEffectRepository.kt 5400-5409
+    /**
+     * セット効果を取得しました (API): id=%s
+     */
+    D_5400(5400),
+    /**
+     * セット効果が見つかりませんでした (API): id=%s
+     */
+    W_5400(5400),
+    /**
+     * セット効果取得に失敗しました (API): %s
+     */
+    E_5400(5400),
+    /**
+     * セット効果一覧取得に失敗しました (API): %s
+     */
+    E_5401(5401),
+    // endregion
+
+    // region /feature/class/repository/ClassRepository.kt 5500-5509
+    /**
+     * 全クラスを一括ロードしました: %d件
+     */
+    I_5500(5500),
+    /**
+     * クラスを取得しました (API): %s
+     */
+    D_5500(5500),
+    /**
+     * クラスが見つかりませんでした (API): %s
+     */
+    W_5500(5500),
+    /**
+     * クラス取得に失敗しました (API): %s
+     */
+    E_5500(5500),
+    /**
+     * クラス一覧取得に失敗しました (API): %s
+     */
+    E_5501(5501),
+    /**
+     * クラス機能の処理に失敗しました: %s
+     */
+    E_5502(5502),
+    // endregion
+
     ;
     private final String id;
 

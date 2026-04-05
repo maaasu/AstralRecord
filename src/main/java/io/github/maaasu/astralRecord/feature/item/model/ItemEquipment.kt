@@ -8,6 +8,7 @@ data class ItemEquipment(
     val handType: ItemEquipmentHandType = ItemEquipmentHandType.ONE,
     val requiredLevel: Int = 0,
     val requiredClasses: List<String> = emptyList(),
+    val setId: String? = null,
     val stats: List<ItemEquipmentStat> = emptyList(),
     val durability: ItemEquipmentDurability?,
     val onUse: ItemEquipmentOnUse?,
