@@ -30,10 +30,6 @@ public class ItemTabCompleter extends AstTabCompleter {
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("load")) {
-            return itemService.getSupportedCategories();
-        }
-
-        if (args.length == 3 && args[0].equalsIgnoreCase("load")) {
             return itemService.getLoadedItemIds();
         }
 
@@ -45,19 +41,11 @@ public class ItemTabCompleter extends AstTabCompleter {
             return itemService.getLoadedItemIds();
         }
 
-        if (args.length == 3 && args[0].equalsIgnoreCase("info")) {
-            return itemService.getLoadedCategories();
-        }
-
         if (args.length == 2 && args[0].equalsIgnoreCase("get")) {
             return itemService.getLoadedItemIds();
         }
 
         if (args.length == 3 && args[0].equalsIgnoreCase("get")) {
-            return itemService.getLoadedCategories();
-        }
-
-        if (args.length == 4 && args[0].equalsIgnoreCase("get")) {
             return List.of("1", "8", "16", "32", "64");
         }
 

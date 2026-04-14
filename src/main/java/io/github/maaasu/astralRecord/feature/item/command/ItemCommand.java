@@ -68,21 +68,15 @@ public class ItemCommand extends AstCommand {
     }
 
     private void handleLoad(@NotNull AstPlayer player, @NotNull String[] args) {
-        if (args.length < 3) {
+        if (args.length < 2) {
             sendUsage(player.getBukkit());
             return;
         }
 
-        String category = args[1];
-        if (!itemService.isSupportedCategory(category)) {
-            player.sendMessage(PlayerMsgId.P_5200, category);
-            return;
-        }
-
-        String itemId = args[2];
-        ItemModel loaded = itemService.loadItem(category, itemId);
+        String itemId = args[1];
+        ItemModel loaded = itemService.loadItem(itemId);
         if (loaded == null) {
-            player.sendMessage(PlayerMsgId.P_5201, category, itemId);
+            player.sendMessage(PlayerMsgId.P_5201, itemId);
             return;
         }
 
@@ -117,27 +111,18 @@ public class ItemCommand extends AstCommand {
         }
 
         String itemId = args[1];
-        String category = args.length >= 3 ? args[2] : null;
-        List<ItemModel> matched = itemService.findLoadedById(itemId, category);
+        ItemModel item = itemService.findLoadedById(itemId);
 
-        if (matched.isEmpty()) {
+        if (item == null) {
             player.sendMessage(PlayerMsgId.P_5213, itemId);
             return;
         }
 
-        if (matched.size() > 1 && category == null) {
-            player.sendMessage(PlayerMsgId.P_5214, itemId);
-            for (ItemModel item : matched) {
-                player.sendMessage(PlayerMsgId.P_5215, item.getCategory(), item.getId(), item.getName());
-            }
-            return;
-        }
-
-        showItemDetail(player, matched.get(0));
+        showItemDetail(player, item);
     }
 
     /**
-     * /item get &lt;itemId&gt; [category] [amount] — ロード済みアイテムを ItemStack としてインベントリに付与します。
+     * /item get &lt;itemId&gt; [amount] — ロード済みアイテムを ItemStack としてインベントリに付与します。
      */
     private void handleGet(@NotNull AstPlayer player, @NotNull String[] args) {
         if (args.length < 2) {
@@ -146,31 +131,21 @@ public class ItemCommand extends AstCommand {
         }
 
         String itemId = args[1];
-        String category = args.length >= 3 ? args[2] : null;
         int amount = 1;
-        if (args.length >= 4) {
+        if (args.length >= 3) {
             try {
-                amount = Integer.parseInt(args[3]);
+                amount = Integer.parseInt(args[2]);
             } catch (NumberFormatException ignored) {
                 // デフォルト 1
             }
         }
 
-        List<ItemModel> matched = itemService.findLoadedById(itemId, category);
-        if (matched.isEmpty()) {
+        ItemModel model = itemService.findLoadedById(itemId);
+        if (model == null) {
             player.sendMessage(PlayerMsgId.P_5213, itemId);
             return;
         }
 
-        if (matched.size() > 1 && category == null) {
-            player.sendMessage(PlayerMsgId.P_5214, itemId);
-            for (ItemModel item : matched) {
-                player.sendMessage(PlayerMsgId.P_5215, item.getCategory(), item.getId(), item.getName());
-            }
-            return;
-        }
-
-        ItemModel model = matched.get(0);
         ItemStack itemStack = itemStackFactory.create(model, amount);
 
         var result = player.getBukkit().getInventory().addItem(itemStack);

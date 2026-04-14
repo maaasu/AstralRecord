@@ -43,12 +43,12 @@ public class ItemService {
         try {
             List<ItemSummary> summaries = itemRepository.findAll();
             for (ItemSummary summary : summaries) {
-                ItemModel item = itemRepository.findById(summary.getCategory(), summary.getId());
+                ItemModel item = itemRepository.findById(summary.getId());
                 if (item == null) {
                     continue;
                 }
 
-                loadedItems.put(cacheKey(item.getCategory(), item.getId()), item);
+                loadedItems.put(normalize(item.getId()), item);
                 categoryCounts.merge(item.getCategory().toLowerCase(Locale.ROOT), 1, Integer::sum);
                 total++;
             }
@@ -80,7 +80,7 @@ public class ItemService {
             List<io.github.maaasu.astralRecord.feature.item.model.ItemModel> items =
                 itemRepository.findAllByCategory(normalizedCategory);
             for (io.github.maaasu.astralRecord.feature.item.model.ItemModel item : items) {
-                loadedItems.put(cacheKey(item.getCategory(), item.getId()), item);
+                loadedItems.put(normalize(item.getId()), item);
             }
             Logger.log(LogId.I_5202, normalizedCategory, items.size());
             return items.size();
@@ -93,18 +93,18 @@ public class ItemService {
     /**
      * アイテムをAPIから取得してロード済みキャッシュへ登録します。
      */
-    public @Nullable ItemModel loadItem(@NotNull String category, @NotNull String itemId) {
-        String normalizedCategory = normalize(category);
-        if (normalizedCategory.isBlank()) {
+    public @Nullable ItemModel loadItem(@NotNull String itemId) {
+        String normalizedId = normalize(itemId);
+        if (normalizedId.isBlank()) {
             return null;
         }
 
-        ItemModel item = itemRepository.findById(normalizedCategory, itemId);
+        ItemModel item = itemRepository.findById(itemId);
         if (item == null) {
             return null;
         }
 
-        loadedItems.put(cacheKey(item.getCategory(), item.getId()), item);
+        loadedItems.put(normalize(item.getId()), item);
         return item;
     }
 
@@ -132,19 +132,15 @@ public class ItemService {
     }
 
     /**
-     * ID（必要ならカテゴリも併用）でロード済みアイテムを検索します。
+     * IDでロード済みアイテムを検索します。
      */
-    public @NotNull List<ItemModel> findLoadedById(@NotNull String itemId, @Nullable String category) {
+    public @Nullable ItemModel findLoadedById(@NotNull String itemId) {
         String normalizedId = normalize(itemId);
         if (normalizedId.isBlank()) {
-            return List.of();
+            return null;
         }
 
-        String normalizedCategory = category == null ? "" : normalize(category);
-        return getLoadedItems().stream()
-            .filter(item -> item.getId().equalsIgnoreCase(normalizedId))
-            .filter(item -> normalizedCategory.isBlank() || item.getCategory().equalsIgnoreCase(normalizedCategory))
-            .toList();
+        return loadedItems.get(normalizedId);
     }
 
     public @NotNull List<String> getLoadedCategories() {
@@ -169,10 +165,6 @@ public class ItemService {
 
     public @NotNull List<String> getSupportedCategories() {
         return ItemCategory.supportedApiValues();
-    }
-
-    private @NotNull String cacheKey(@NotNull String category, @NotNull String itemId) {
-        return normalize(category) + ":" + normalize(itemId);
     }
 
     private @NotNull String normalize(@NotNull String value) {

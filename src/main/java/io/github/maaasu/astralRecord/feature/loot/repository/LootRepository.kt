@@ -19,10 +19,10 @@ class LootRepository {
 
     /**
      * 全ルートテーブル一覧を取得します。
-     * GET /api/loot
+     * GET /api/loot/table
      */
     fun findAll(): List<LootModel> {
-        val path = "/api/loot"
+        val path = "/api/loot/table"
         try {
             ApiRequestUtil.buildClient().use { client ->
                 val request = ApiRequestUtil.buildRequestBuilder(path).GET().build()
@@ -44,11 +44,11 @@ class LootRepository {
 
     /**
      * 指定IDのルートテーブルを取得します。
-     * GET /api/loot/{lootId}
+     * GET /api/loot/table/{tableId}
      */
     fun findById(lootId: String): LootModel? {
         val encodedId = URLEncoder.encode(lootId.trim(), StandardCharsets.UTF_8).replace("+", "%20")
-        val path = "/api/loot/$encodedId"
+        val path = "/api/loot/table/$encodedId"
 
         try {
             ApiRequestUtil.buildClient().use { client ->

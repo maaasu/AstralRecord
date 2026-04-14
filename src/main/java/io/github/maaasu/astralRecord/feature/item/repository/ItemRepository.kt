@@ -71,7 +71,7 @@ class ItemRepository {
         val summaries = findAll().filter { it.category.equals(normalizedCategory, ignoreCase = true) }
         val items = mutableListOf<ItemModel>()
         for (summary in summaries) {
-            val item = findById(summary.category, summary.id)
+            val item = findById(summary.id)
             if (item != null) {
                 items += item
             }
@@ -81,11 +81,9 @@ class ItemRepository {
         return items
     }
 
-    fun findById(category: String, itemId: String): ItemModel? {
-        val normalizedCategory = category.trim()
-        val encodedCategory = URLEncoder.encode(normalizedCategory, StandardCharsets.UTF_8).replace("+", "%20")
+    fun findById(itemId: String): ItemModel? {
         val encodedItemId = URLEncoder.encode(itemId, StandardCharsets.UTF_8).replace("+", "%20")
-        val path = "/api/item/$encodedCategory/$encodedItemId"
+        val path = "/api/item/$encodedItemId"
 
         try {
             ApiRequestUtil.buildClient().use { client ->
@@ -94,11 +92,11 @@ class ItemRepository {
                 return when (response.statusCode()) {
                     200 -> {
                         val item = parseItem(response.body())
-                        Logger.log(LogId.D_5200, normalizedCategory, itemId)
+                        Logger.log(LogId.D_5200, item.category, itemId)
                         item
                     }
                     404 -> {
-                        Logger.log(LogId.W_5200, normalizedCategory, itemId)
+                        Logger.log(LogId.W_5200, itemId)
                         null
                     }
                     else -> {
