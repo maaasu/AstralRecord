@@ -4,6 +4,7 @@ import io.github.maaasu.astralRecord.core.CommandRegister;
 import io.github.maaasu.astralRecord.core.event.EventManager;
 import io.github.maaasu.astralRecord.feature.account.repository.AccountRepository;
 import io.github.maaasu.astralRecord.feature.account.service.AccountService;
+import io.github.maaasu.astralRecord.feature.item.event.ItemInteractionBlockEventHandler;
 import io.github.maaasu.astralRecord.feature.item.service.ItemService;
 import io.github.maaasu.astralRecord.feature.item.service.ItemStackFactory;
 import io.github.maaasu.astralRecord.feature.item.view.ItemStackPacketAdapter;
@@ -133,7 +134,7 @@ public final class AstralRecord extends JavaPlugin {
         // player
         playerService = new PlayerService(userService, accountService, statusService);
 
-        // loot → item: loot を先にロードし、完了後に item をロード（bundle の lootTableId 解決に必要）
+        // item & loot
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
             lootService.loadAll();
             itemService.loadAll();
@@ -157,6 +158,10 @@ public final class AstralRecord extends JavaPlugin {
         );
         eventManager.registerHandler(
             new PlayerJoinEventHandler(playerService),
+            getServer().getPluginManager()
+        );
+        eventManager.registerHandler(
+            new ItemInteractionBlockEventHandler(),
             getServer().getPluginManager()
         );
     }

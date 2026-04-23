@@ -62,6 +62,31 @@ lastUpdated: 2026-03-22
    さらに `.github/prompts/player_msg.prompt.md` を必ず参照すること。**
    同様に、SQL Server テーブル定義・YAML マスタデータ生成など、領域固有の指示は対応するカスタムプロンプトに委譲する。
 
+5. **AstralRecord API 仕様の参照手順**
+   API エンドポイントのパス・リクエスト・レスポンス形式が必要な場合は、以下の手順に従うこと。
+
+   1. `scripts/sync-api-docs.ps1` を実行して `docs/api/` を最新化する
+      ```powershell
+      powershell -ExecutionPolicy Bypass -File "scripts/sync-api-docs.ps1"
+      ```
+   2. `docs/api/*.md` を参照して仕様を確認する
+   3. `docs/api/` にドキュメントが存在しない場合はユーザーに確認すること
+
+   > **禁止**: `temp/` フォルダ内のファイルを API 仕様の根拠として使用しないこと。
+
+6. **データベース仕様の参照手順**
+   SQL Server テーブル定義・カラム仕様・インデックスなど、データベースに関する情報が必要な場合は、以下の手順に従うこと。
+   詳細は `.github/prompts/database.prompt.md` を参照すること。
+
+   1. `scripts/sync-database-docs.ps1` を実行して `docs/database/` を最新化する
+      ```powershell
+      powershell -ExecutionPolicy Bypass -File "scripts/sync-database-docs.ps1"
+      ```
+   2. `docs/database/` 内のファイルを参照してテーブル定義・仕様を確認する
+   3. `docs/database/` にドキュメントが存在しない場合はユーザーに確認すること
+
+   > **禁止**: `temp/` フォルダ内のファイルをデータベース仕様の根拠として使用しないこと。
+
 ---
 
 ## コマンド処理ルール

@@ -38,7 +38,7 @@ public class LootService {
         try {
             List<LootModel> loots = lootRepository.findAll();
             for (LootModel loot : loots) {
-                loadedLoots.put(normalize(loot.getId()), loot);
+                cacheLoot(loot);
             }
             Logger.log(LogId.I_5300, loots.size());
             return loots.size();
@@ -72,6 +72,16 @@ public class LootService {
      */
     public void clearCache() {
         loadedLoots.clear();
+    }
+
+    /**
+     * ルートテーブルをキャッシュへ登録し、詳細情報を debug ログへ出力します。
+     *
+     * @param loot 登録するルートテーブル
+     */
+    private void cacheLoot(@NotNull LootModel loot) {
+        loadedLoots.put(normalize(loot.getId()), loot);
+        Logger.log(LogId.D_5301, loot);
     }
 
     private @NotNull String normalize(@NotNull String value) {

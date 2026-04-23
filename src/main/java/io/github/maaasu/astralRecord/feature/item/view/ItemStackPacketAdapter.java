@@ -15,7 +15,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -102,12 +101,12 @@ public class ItemStackPacketAdapter {
      * SET_SLOT パケット内の単一 ItemStack を書き換えます。
      */
     private void handleSetSlot(@NotNull PacketContainer packet) {
-        ItemStack original = packet.getItemModifier().readSafely(0);
+        var original = packet.getItemModifier().readSafely(0);
         if (original == null || original.getType() == Material.AIR) {
             return;
         }
 
-        ItemStack replaced = replaceIcon(original);
+        var replaced = replaceIcon(original);
         if (replaced != null) {
             packet.getItemModifier().writeSafely(0, replaced);
         }
@@ -117,19 +116,19 @@ public class ItemStackPacketAdapter {
      * WINDOW_ITEMS パケット内の ItemStack リストを書き換えます。
      */
     private void handleWindowItems(@NotNull PacketContainer packet) {
-        List<ItemStack> items = packet.getItemListModifier().readSafely(0);
+        var items = packet.getItemListModifier().readSafely(0);
         if (items == null || items.isEmpty()) {
             return;
         }
 
-        boolean modified = false;
+        var modified = false;
         for (int i = 0; i < items.size(); i++) {
-            ItemStack original = items.get(i);
+            var original = items.get(i);
             if (original == null || original.getType() == Material.AIR) {
                 continue;
             }
 
-            ItemStack replaced = replaceIcon(original);
+            var replaced = replaceIcon(original);
             if (replaced != null) {
                 items.set(i, replaced);
                 modified = true;
@@ -153,18 +152,19 @@ public class ItemStackPacketAdapter {
      * @return icon 適用済み ItemStack、または {@code null}
      */
     private static ItemStack replaceIcon(@NotNull ItemStack original) {
-        String iconName = ItemStackFactory.getIconName(original);
+        var iconName = ItemStackFactory.getIconName(original);
         if (iconName == null) {
             return null;
         }
 
-        Material iconMaterial = resolveMaterial(iconName);
+        var iconMaterial = resolveMaterial(iconName);
         if (iconMaterial == null || iconMaterial == original.getType()) {
             return null;
         }
 
         return original.withType(iconMaterial);
     }
+
 
     /**
      * Material 名を解決します。キャッシュにヒットしない場合のみ {@link Material#matchMaterial} を呼び出します。
@@ -173,9 +173,9 @@ public class ItemStackPacketAdapter {
      * @return 解決された Material。不正な名前なら {@code null}
      */
     private static Material resolveMaterial(@NotNull String name) {
-        String upper = name.toUpperCase(Locale.ROOT);
+        var upper = name.toUpperCase(Locale.ROOT);
         return MATERIAL_CACHE.computeIfAbsent(upper, k -> {
-            Material mat = Material.matchMaterial(k);
+            var mat = Material.matchMaterial(k);
             if (mat == null) {
                 Logger.log(LogId.W_5210, k);
             }

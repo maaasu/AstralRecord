@@ -36,7 +36,9 @@ public class UserService {
     public void onAsyncPreLogin(UUID uuid, String mcid, String globalIp) {
         UserModel existing;
         try {
-            existing = userRepository.findByUuid(uuid);
+            // 初参加チェックのため 404 が正常系となる findByUuidSilent を使用する
+            // findByUuid は「存在すべきユーザーが見つからない」場面向けであり WARN が出るため使用しないこと
+            existing = userRepository.findByUuidSilent(uuid);
         } catch (Exception e) {
             Logger.log(LogId.W_5051, mcid, e.getMessage());
             return;

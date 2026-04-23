@@ -415,7 +415,7 @@ public enum LogId {
      */
     I_5203(5203),
     /**
-     * アイテムが見つかりませんでした (API): id=%s
+     * アイテムが見つかりませんでした (API): category=%s, id=%s
      */
     W_5200(5200),
     /**
@@ -458,6 +458,10 @@ public enum LogId {
      * カテゴリのアイテム一覧を取得しました (API): category=%s (%d件)
      */
     D_5202(5202),
+    /**
+     * アイテム詳細をロードしました: %s
+     */
+    D_5203(5203),
     /**
      * アイテム取得に失敗しました (API): %s
      */
@@ -509,6 +513,10 @@ public enum LogId {
      */
     E_5300(5300),
     /**
+     * ルートテーブル詳細をロードしました: %s
+     */
+    D_5301(5301),
+    /**
      * ルートテーブル一括ロードに失敗しました (Service): %s
      */
     E_5301(5301),
@@ -531,6 +539,13 @@ public enum LogId {
      * セット効果一覧取得に失敗しました (API): %s
      */
     E_5401(5401),
+    // endregion
+
+    // region /feature/buff/repository/BuffRepository.kt /feature/buff/service/BuffService.java 5450-5499
+    /**
+     * バフ詳細をロードしました: %s
+     */
+    D_5451(5451),
     // endregion
 
     // region /feature/class/repository/ClassRepository.kt 5500-5509

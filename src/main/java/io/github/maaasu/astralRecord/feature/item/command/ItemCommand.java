@@ -1,6 +1,9 @@
 package io.github.maaasu.astralRecord.feature.item.command;
 
+import io.github.maaasu.astralRecord.feature.item.model.EquipmentEnchant;
 import io.github.maaasu.astralRecord.feature.item.model.ItemModel;
+import io.github.maaasu.astralRecord.feature.item.model.EquipmentInstance;
+import io.github.maaasu.astralRecord.feature.item.model.RuneInstance;
 import io.github.maaasu.astralRecord.feature.item.service.ItemService;
 import io.github.maaasu.astralRecord.feature.item.service.ItemStackFactory;
 import io.github.maaasu.astralRecord.feature.player.PlayerMsgId;
@@ -11,6 +14,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -123,6 +127,7 @@ public class ItemCommand extends AstCommand {
 
     /**
      * /item get &lt;itemId&gt; [amount] — ロード済みアイテムを ItemStack としてインベントリに付与します。
+     * equipment / rune カテゴリの場合は POST API でインスタンスを新規作成し、確定値を反映します。
      */
     private void handleGet(@NotNull AstPlayer player, @NotNull String[] args) {
         if (args.length < 2) {
@@ -131,14 +136,6 @@ public class ItemCommand extends AstCommand {
         }
 
         String itemId = args[1];
-        int amount = 1;
-        if (args.length >= 3) {
-            try {
-                amount = Integer.parseInt(args[2]);
-            } catch (NumberFormatException ignored) {
-                // デフォルト 1
-            }
-        }
 
         ItemModel model = itemService.findLoadedById(itemId);
         if (model == null) {
@@ -146,7 +143,46 @@ public class ItemCommand extends AstCommand {
             return;
         }
 
-        ItemStack itemStack = itemStackFactory.create(model, amount);
+        String accountId = player.getAccount().getUuid().toString();
+        String category = model.getCategory().toLowerCase(Locale.ROOT);
+        ItemStack itemStack;
+
+        if ("equipment".equals(category)) {
+            int enhanceLevel = parseNonNegativeInt(args, 2, 0);
+            int enchantCount = parseNonNegativeInt(args, 3, 0);
+            int transcendenceIndex = parseNonNegativeInt(args, 4, 0);
+
+            EquipmentInstance instance = itemService.createEquipmentInstance(
+                model.getId(), accountId, "command", accountId);
+            if (instance == null) {
+                player.sendMessage(PlayerMsgId.P_5201, itemId);
+                return;
+            }
+
+            // view確認用: API作成結果を一時的に上書きして表示だけ差し替える
+            EquipmentInstance previewInstance = buildPreviewEquipmentInstance(
+                instance,
+                enhanceLevel,
+                enchantCount,
+                transcendenceIndex
+            );
+            itemStack = itemStackFactory.create(model, previewInstance, 1);
+
+        } else if ("rune".equals(category)) {
+            int amount = parsePositiveInt(args, 2, 1);
+
+            RuneInstance instance = itemService.createRuneInstance(
+                model.getId(), accountId, "command", accountId);
+            if (instance == null) {
+                player.sendMessage(PlayerMsgId.P_5201, itemId);
+                return;
+            }
+            itemStack = itemStackFactory.create(model, instance, amount);
+
+        } else {
+            int amount = parsePositiveInt(args, 2, 1);
+            itemStack = itemStackFactory.create(model, amount);
+        }
 
         var result = player.getBukkit().getInventory().addItem(itemStack);
         if (!result.isEmpty()) {
@@ -154,7 +190,78 @@ public class ItemCommand extends AstCommand {
             return;
         }
 
-        player.sendMessage(PlayerMsgId.P_5240, model.getName(), amount);
+        player.sendMessage(PlayerMsgId.P_5240, model.getName(), itemStack.getAmount());
+    }
+
+    private @NotNull EquipmentInstance buildPreviewEquipmentInstance(
+        @NotNull EquipmentInstance base,
+        int enhanceLevel,
+        int enchantCount,
+        int transcendenceIndex
+    ) {
+        return new EquipmentInstance(
+            base.getEquipmentInstanceId(),
+            base.getAccountId(),
+            base.getItemId(),
+            enhanceLevel,
+            base.getRuneMaxSlots(),
+            transcendenceIndex,
+            base.getDurabilityMax(),
+            base.getDurabilityValue(),
+            base.getCreatedAt(),
+            base.getUpdatedAt(),
+            base.getStatRolls(),
+            createPreviewEnchants(base, enchantCount),
+            base.getRunes(),
+            base.getEnchantPools()
+        );
+    }
+
+    private @NotNull List<EquipmentEnchant> createPreviewEnchants(
+        @NotNull EquipmentInstance base,
+        int enchantCount
+    ) {
+        if (enchantCount <= 0) {
+            return List.of();
+        }
+
+        List<EquipmentEnchant> enchants = new ArrayList<>();
+        for (int i = 0; i < enchantCount; i++) {
+            enchants.add(new EquipmentEnchant(
+                "preview-enchant-" + (i + 1),
+                base.getEquipmentInstanceId(),
+                i,
+                0,
+                "ATK",
+                "FLAT",
+                10.0d
+            ));
+        }
+        return enchants;
+    }
+
+    private int parsePositiveInt(@NotNull String[] args, int index, int defaultValue) {
+        if (args.length <= index) {
+            return defaultValue;
+        }
+
+        try {
+            return Math.max(1, Integer.parseInt(args[index]));
+        } catch (NumberFormatException ignored) {
+            return defaultValue;
+        }
+    }
+
+    private int parseNonNegativeInt(@NotNull String[] args, int index, int defaultValue) {
+        if (args.length <= index) {
+            return defaultValue;
+        }
+
+        try {
+            return Math.max(0, Integer.parseInt(args[index]));
+        } catch (NumberFormatException ignored) {
+            return defaultValue;
+        }
     }
 
     private void showItemDetail(@NotNull AstPlayer player, @NotNull ItemModel item) {
@@ -236,7 +343,7 @@ public class ItemCommand extends AstCommand {
         }
 
         for (var stat : item.getEquipment().getStats()) {
-            player.sendMessage(PlayerMsgId.P_5227, stat.getStatus(), stat.getType(), stat.getValue());
+            player.sendMessage(PlayerMsgId.P_5227, stat.getStatus(), stat.getType(), stat.displayValue());
         }
 
         if (item.getEquipment().getDurability() != null) {
@@ -325,4 +432,3 @@ public class ItemCommand extends AstCommand {
         return formatNumber(value);
     }
 }
-

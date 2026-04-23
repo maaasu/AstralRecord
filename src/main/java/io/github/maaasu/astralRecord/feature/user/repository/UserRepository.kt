@@ -59,6 +59,39 @@ class UserRepository {
         }
     }
 
+    /**
+     * UUID でユーザーの存在を確認します。初参加チェックなど 404 が正常系となる用途で使用します。
+     * 404 の場合はログを出力しません。
+     * GET /api/user/{uuid}
+     *
+     * @return ユーザーが存在する場合は [UserModel]、存在しない場合は null
+     */
+    fun findByUuidSilent(uuid: UUID): UserModel? {
+        val path = "/api/user/$uuid"
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path).GET().build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                return when (response.statusCode()) {
+                    200 -> {
+                        Logger.log(LogId.D_5055, uuid)
+                        parseUserModel(response.body())
+                    }
+                    404 -> null
+                    else -> {
+                        val message = "HTTP ${response.statusCode()} for GET $path"
+                        Logger.log(LogId.E_5055, message)
+                        throw IOException("Unexpected status ${response.statusCode()} for GET $path")
+                    }
+                }
+            }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5055, e, e.message ?: "Interrupted while GET $path")
+            throw RuntimeException(e)
+        }
+    }
+
     // -------------------------------------------------------
     // INSERT
     // -------------------------------------------------------

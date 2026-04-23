@@ -40,24 +40,21 @@ public class PlayerService {
      * @param player ログインした Bukkit プレイヤー
      */
     public void onPlayerJoin(Player player) {
-        UserModel user = userService.getUser(player.getUniqueId());
+        var user = userService.getUser(player.getUniqueId());
         if (user == null) {
             Logger.log(LogId.W_5070, player.getName());
             return;
         }
 
-        AccountModel account = accountService.getSelectedAccount(user.getUuid(), user.getAccountId());
+        var account = accountService.getSelectedAccount(user.getUuid(), user.getAccountId());
         if (account == null) {
             Logger.log(LogId.W_5070, player.getName());
             return;
         }
 
-        AstPlayer astPlayer = new AstPlayer(player, user, account);
+        var astPlayer = new AstPlayer(player, user, account);
         statusService.refreshStatus(astPlayer);
-        if (AstPlayerCache.getAll().contains(astPlayer)) {
-
-            return;
-        }
+        if (AstPlayerCache.getAll().contains(astPlayer))  return;
         AstPlayerCache.put(astPlayer);
     }
 

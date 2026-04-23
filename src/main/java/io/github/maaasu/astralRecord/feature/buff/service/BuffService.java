@@ -7,6 +7,8 @@ import io.github.maaasu.astralRecord.feature.buff.model.BuffType;
 import io.github.maaasu.astralRecord.feature.buff.repository.BuffRepository;
 import io.github.maaasu.astralRecord.feature.player.model.AstPlayer;
 import io.github.maaasu.astralRecord.feature.status.model.StatusType;
+import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
+import io.github.maaasu.astralRecord.infrastructure.logging.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -129,6 +131,7 @@ public class BuffService {
         BuffType loaded = buffRepository.findById(buffId);
         if (loaded != null) {
             buffCache.put(buffId, loaded);
+            Logger.log(LogId.D_5451, loaded);
         }
         return loaded;
     }

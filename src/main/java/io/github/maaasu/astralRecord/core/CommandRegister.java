@@ -40,7 +40,7 @@ public class CommandRegister {
         cm.registerCommand("test", new TestCommand(), new TestTabCompleter());
 
         // /temp — 管理者向けテンポラリコマンド（permission 99 以上必要）
-        cm.registerCommand("temp", new TempCommand(), new TempTabCompleter());
+        cm.registerCommand("temp", new TempCommand(itemService), new TempTabCompleter());
 
         // /status — 基本ステータス表示
         cm.registerCommand("status", new StatusCommand(), new StatusTabCompleter());

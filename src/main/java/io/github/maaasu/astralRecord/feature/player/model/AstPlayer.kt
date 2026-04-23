@@ -1,6 +1,7 @@
 package io.github.maaasu.astralRecord.feature.player.model
 
 import io.github.maaasu.astralRecord.feature.account.model.AccountModel
+import io.github.maaasu.astralRecord.feature.account.model.AccountMode
 import io.github.maaasu.astralRecord.feature.buff.model.ActiveBuff
 import io.github.maaasu.astralRecord.feature.player.PlayerMsgId
 import io.github.maaasu.astralRecord.feature.player.PlayerMsgResource
@@ -8,6 +9,8 @@ import io.github.maaasu.astralRecord.feature.status.model.StatusSnapshot
 import io.github.maaasu.astralRecord.feature.user.model.UserModel
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId
 import io.github.maaasu.astralRecord.infrastructure.logging.Logger
+import org.bukkit.GameMode
+import org.bukkit.attribute.Attribute
 import org.bukkit.entity.Player
 
 /**
@@ -32,6 +35,7 @@ data class AstPlayer(
 
     init {
         applyPermission(user)
+        applyAccountMode(account)
     }
 
     companion object {
@@ -56,6 +60,30 @@ data class AstPlayer(
         } else {
             bukkit.isOp = false
         }
+    }
+
+    /**
+     * [AccountModel] の mode を Bukkit プレイヤーへ反映します。
+     * mode が [AccountMode.PLAYER] の場合、通常プレイヤー向け制限として
+     * GameMode を [GameMode.ADVENTURE]、エンティティ/ブロックの reach を 0 に設定します。
+     *
+     * @param newAccount 反映対象の [AccountModel]
+     */
+    fun applyAccountMode(newAccount: AccountModel) {
+        if (newAccount.mode != AccountMode.PLAYER) {
+            return
+        }
+
+        bukkit.gameMode = GameMode.ADVENTURE
+        applyReach(Attribute.ENTITY_INTERACTION_RANGE, 0.0)
+        applyReach(Attribute.BLOCK_INTERACTION_RANGE, 0.0)
+    }
+
+    /**
+     * 指定 Attribute の baseValue を更新します。
+     */
+    private fun applyReach(attribute: Attribute, value: Double) {
+        bukkit.getAttribute(attribute)?.baseValue = value
     }
 
     /**
