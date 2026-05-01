@@ -10,10 +10,12 @@ import com.comphenix.protocol.events.PacketEvent;
 import io.github.maaasu.astralRecord.feature.item.service.ItemStackFactory;
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
 import io.github.maaasu.astralRecord.infrastructure.logging.Logger;
+import io.github.maaasu.astralRecord.infrastructure.util.CustomModelDataComponentUtil;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
 import java.util.Map;
@@ -151,19 +153,44 @@ public class ItemStackPacketAdapter {
      * @param original 元の ItemStack
      * @return icon 適用済み ItemStack、または {@code null}
      */
-    private static ItemStack replaceIcon(@NotNull ItemStack original) {
+    private ItemStack replaceIcon(@NotNull ItemStack original) {
         var iconName = ItemStackFactory.getIconName(original);
-        if (iconName == null) {
+        var customModelData = ItemStackFactory.getCustomModelData(original);
+
+        if (iconName == null && customModelData == null) {
             return null;
         }
 
-        var iconMaterial = resolveMaterial(iconName);
-        if (iconMaterial == null || iconMaterial == original.getType()) {
-            return null;
+        ItemStack replaced = original;
+        boolean modified = false;
+
+        if (iconName != null) {
+            var iconMaterial = resolveMaterial(iconName);
+            if (iconMaterial != null && iconMaterial != original.getType()) {
+                replaced = original.withType(iconMaterial);
+                modified = true;
+            }
         }
 
-        return original.withType(iconMaterial);
+        if (customModelData != null) {
+            var meta = replaced.getItemMeta();
+            if (meta != null) {
+                Integer currentCustomModelData = CustomModelDataComponentUtil.readAsInt(meta);
+                if (needsCustomModelDataUpdate(customModelData, currentCustomModelData)) {
+                    CustomModelDataComponentUtil.writeFromInt(meta, customModelData);
+                    replaced.setItemMeta(meta);
+                    modified = true;
+                }
+            }
+        }
+
+        return modified ? replaced : null;
     }
+
+    static boolean needsCustomModelDataUpdate(int desiredCustomModelData, @Nullable Integer currentCustomModelData) {
+        return currentCustomModelData == null || currentCustomModelData != desiredCustomModelData;
+    }
+
 
 
     /**
@@ -185,4 +212,3 @@ public class ItemStackPacketAdapter {
 
     // endregion
 }
-

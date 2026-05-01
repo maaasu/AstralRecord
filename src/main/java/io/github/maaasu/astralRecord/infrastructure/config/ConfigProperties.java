@@ -1,5 +1,7 @@
 package io.github.maaasu.astralRecord.infrastructure.config;
 
+import java.util.List;
+
 public class ConfigProperties {
 
     private static ConfigProperties instance;
@@ -35,6 +37,15 @@ public class ConfigProperties {
     private String apiAuthApiKey;
     private int apiTimeout;
     private boolean apiSslVerifyEnabled;
+
+    // Resource pack settings
+    private boolean resourcePackEnabled;
+    private String resourcePackUrl;
+    private String resourcePackSha1;
+    private boolean resourcePackForce;
+    private String resourcePackPrompt;
+    private boolean resourcePackSkipBedrock;
+    private List<String> resourcePackBedrockNamePrefixes;
 
     private ConfigProperties() {
         // private constructor for singleton
@@ -88,6 +99,23 @@ public class ConfigProperties {
         this.apiAuthApiKey = configManager.getConfig().getString(ConfigKeys.API_AUTH_API_KEY, "");
         this.apiTimeout = configManager.getConfig().getInt(ConfigKeys.API_TIMEOUT, 30000);
         this.apiSslVerifyEnabled = configManager.getConfig().getBoolean(ConfigKeys.API_SSL_VERIFY_ENABLED, true);
+
+        // Resource pack settings
+        this.resourcePackEnabled = configManager.getConfig().getBoolean(ConfigKeys.RESOURCE_PACK_ENABLED, false);
+        this.resourcePackUrl = configManager.getConfig().getString(ConfigKeys.RESOURCE_PACK_URL, "");
+        this.resourcePackSha1 = configManager.getConfig().getString(ConfigKeys.RESOURCE_PACK_SHA1, "");
+        this.resourcePackForce = configManager.getConfig().getBoolean(ConfigKeys.RESOURCE_PACK_FORCE, false);
+        this.resourcePackPrompt = configManager.getConfig().getString(
+                ConfigKeys.RESOURCE_PACK_PROMPT,
+                "AstralRecord resource pack"
+        );
+        this.resourcePackSkipBedrock = configManager.getConfig().getBoolean(ConfigKeys.RESOURCE_PACK_SKIP_BEDROCK, true);
+        this.resourcePackBedrockNamePrefixes = configManager.getConfig().getStringList(
+                ConfigKeys.RESOURCE_PACK_BEDROCK_NAME_PREFIXES
+        );
+        if (this.resourcePackBedrockNamePrefixes.isEmpty()) {
+            this.resourcePackBedrockNamePrefixes = List.of(".", "*");
+        }
     }
 
     /**
@@ -212,5 +240,33 @@ public class ConfigProperties {
      */
     public boolean isApiSslVerifyEnabled() {
         return apiSslVerifyEnabled;
+    }
+
+    public boolean isResourcePackEnabled() {
+        return resourcePackEnabled;
+    }
+
+    public String getResourcePackUrl() {
+        return resourcePackUrl;
+    }
+
+    public String getResourcePackSha1() {
+        return resourcePackSha1;
+    }
+
+    public boolean isResourcePackForce() {
+        return resourcePackForce;
+    }
+
+    public String getResourcePackPrompt() {
+        return resourcePackPrompt;
+    }
+
+    public boolean isResourcePackSkipBedrock() {
+        return resourcePackSkipBedrock;
+    }
+
+    public List<String> getResourcePackBedrockNamePrefixes() {
+        return resourcePackBedrockNamePrefixes;
     }
 }

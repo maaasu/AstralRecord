@@ -7,6 +7,7 @@ import io.github.maaasu.astralRecord.feature.player.PlayerMsgId
 import io.github.maaasu.astralRecord.feature.player.PlayerMsgResource
 import io.github.maaasu.astralRecord.feature.status.model.StatusSnapshot
 import io.github.maaasu.astralRecord.feature.user.model.UserModel
+import io.github.maaasu.astralRecord.infrastructure.config.ConfigProperties
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId
 import io.github.maaasu.astralRecord.infrastructure.logging.Logger
 import org.bukkit.GameMode
@@ -41,6 +42,16 @@ data class AstPlayer(
     companion object {
         /** この値以上の permission を持つプレイヤーに Minecraft OP 権限を付与する */
         const val OP_PERMISSION_THRESHOLD = 99
+    }
+
+    /**
+     * Returns whether this player should be treated as a Bedrock Edition player.
+     */
+    fun isBedrock(): Boolean {
+        val prefixes = ConfigProperties.getInstance().resourcePackBedrockNamePrefixes ?: return false
+        return prefixes.any { prefix ->
+            !prefix.isNullOrBlank() && bukkit.name.startsWith(prefix)
+        }
     }
 
     /**

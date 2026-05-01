@@ -19,12 +19,10 @@ import io.github.maaasu.astralRecord.infrastructure.command.CommandManager;
  * {@link AstralRecord#onLoad()} 内で {@link CommandManager#initialize(AstralRecord)} より前に呼び出してください。
  */
 public class CommandRegister {
-    private final AstralRecord instance;
     private final ItemService itemService;
     private final ItemStackFactory itemStackFactory;
 
-    public CommandRegister(AstralRecord plugin, ItemService itemService, ItemStackFactory itemStackFactory) {
-        this.instance = plugin;
+    public CommandRegister(ItemService itemService, ItemStackFactory itemStackFactory) {
         this.itemService = itemService;
         this.itemStackFactory = itemStackFactory;
         registerCommand();
@@ -40,7 +38,7 @@ public class CommandRegister {
         cm.registerCommand("test", new TestCommand(), new TestTabCompleter());
 
         // /temp — 管理者向けテンポラリコマンド（permission 99 以上必要）
-        cm.registerCommand("temp", new TempCommand(itemService), new TempTabCompleter());
+        cm.registerCommand("temp", new TempCommand(), new TempTabCompleter());
 
         // /status — 基本ステータス表示
         cm.registerCommand("status", new StatusCommand(), new StatusTabCompleter());
@@ -50,9 +48,5 @@ public class CommandRegister {
 
         // /astreload — プラグインホットリロード（permission 99 以上必要）
         cm.registerCommand("astreload", new ReloadCommand());
-    }
-
-    private AstralRecord getInstance() {
-        return instance;
     }
 }

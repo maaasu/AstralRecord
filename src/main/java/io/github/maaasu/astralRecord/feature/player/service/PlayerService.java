@@ -2,6 +2,7 @@ package io.github.maaasu.astralRecord.feature.player.service;
 
 import io.github.maaasu.astralRecord.feature.account.model.AccountModel;
 import io.github.maaasu.astralRecord.feature.account.service.AccountService;
+import io.github.maaasu.astralRecord.feature.inventory.service.InventoryService;
 import io.github.maaasu.astralRecord.feature.player.AstPlayerCache;
 import io.github.maaasu.astralRecord.feature.player.model.AstPlayer;
 import io.github.maaasu.astralRecord.feature.status.service.StatusService;
@@ -22,11 +23,18 @@ public class PlayerService {
 
     private final UserService userService;
     private final AccountService accountService;
+    private final InventoryService inventoryService;
     private final StatusService statusService;
 
-    public PlayerService(UserService userService, AccountService accountService, StatusService statusService) {
+    public PlayerService(
+        UserService userService,
+        AccountService accountService,
+        InventoryService inventoryService,
+        StatusService statusService
+    ) {
         this.userService = userService;
         this.accountService = accountService;
+        this.inventoryService = inventoryService;
         this.statusService = statusService;
     }
 
@@ -53,6 +61,9 @@ public class PlayerService {
         }
 
         var astPlayer = new AstPlayer(player, user, account);
+        if (account.getMode().shouldReflectInventoryToGui()) {
+            inventoryService.applyInventoriesToGui(astPlayer);
+        }
         statusService.refreshStatus(astPlayer);
         if (AstPlayerCache.getAll().contains(astPlayer))  return;
         AstPlayerCache.put(astPlayer);

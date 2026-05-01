@@ -5,18 +5,24 @@ import io.github.maaasu.astralRecord.core.event.EventManager;
 import io.github.maaasu.astralRecord.feature.account.repository.AccountRepository;
 import io.github.maaasu.astralRecord.feature.account.service.AccountService;
 import io.github.maaasu.astralRecord.feature.item.event.ItemInteractionBlockEventHandler;
+import io.github.maaasu.astralRecord.feature.inventory.repository.InventoryRepository;
+import io.github.maaasu.astralRecord.feature.inventory.service.InventoryService;
 import io.github.maaasu.astralRecord.feature.item.service.ItemService;
 import io.github.maaasu.astralRecord.feature.item.service.ItemStackFactory;
 import io.github.maaasu.astralRecord.feature.item.view.ItemStackPacketAdapter;
 import io.github.maaasu.astralRecord.feature.loot.service.LootService;
 import io.github.maaasu.astralRecord.feature.player.event.PlayerJoinEventHandler;
 import io.github.maaasu.astralRecord.feature.player.service.PlayerService;
+import io.github.maaasu.astralRecord.feature.resourcepack.event.ResourcePackJoinEventHandler;
+import io.github.maaasu.astralRecord.feature.resourcepack.event.ResourcePackStatusEventHandler;
+import io.github.maaasu.astralRecord.feature.resourcepack.service.ResourcePackService;
 import io.github.maaasu.astralRecord.feature.status.service.StatusService;
 import io.github.maaasu.astralRecord.feature.user.event.UserLoginEventHandler;
 import io.github.maaasu.astralRecord.feature.user.repository.UserRepository;
 import io.github.maaasu.astralRecord.feature.user.service.UserService;
 import io.github.maaasu.astralRecord.infrastructure.command.CommandManager;
 import io.github.maaasu.astralRecord.infrastructure.config.ConfigManager;
+import io.github.maaasu.astralRecord.infrastructure.config.ConfigProperties;
 import io.github.maaasu.astralRecord.infrastructure.api.ApiHealthChecker;
 import io.github.maaasu.astralRecord.infrastructure.database.file.FileDatabaseManager;
 import io.github.maaasu.astralRecord.infrastructure.database.file.yaml.config.YamlDbConfigUtil;
@@ -36,6 +42,8 @@ public final class AstralRecord extends JavaPlugin {
     private ItemStackFactory itemStackFactory;
     private UserService userService;
     private PlayerService playerService;
+    private InventoryService inventoryService;
+    private ResourcePackService resourcePackService;
     private EventManager eventManager;
 
     @Override
@@ -46,7 +54,7 @@ public final class AstralRecord extends JavaPlugin {
         itemStackFactory = new ItemStackFactory(lootService);
         // CommandManagerの初期化はPaper Lifecycle APIの制約上、onLoad()内で行う
         // コマンドをここで登録し、initialize()を呼び出す
-        new CommandRegister(this, itemService, itemStackFactory);
+        new CommandRegister(itemService, itemStackFactory);
         CommandManager.getInstance().initialize(this);
     }
 
@@ -128,11 +136,18 @@ public final class AstralRecord extends JavaPlugin {
         UserRepository userRepository = new UserRepository();
         userService = new UserService(userRepository, accountService);
 
+        // inventory
+        InventoryRepository inventoryRepository = new InventoryRepository();
+        inventoryService = new InventoryService(inventoryRepository, itemService, itemStackFactory);
+
         // status
         StatusService statusService = new StatusService();
 
         // player
-        playerService = new PlayerService(userService, accountService, statusService);
+        playerService = new PlayerService(userService, accountService, inventoryService, statusService);
+
+        // resource pack
+        resourcePackService = new ResourcePackService(ConfigProperties.getInstance());
 
         // item & loot
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
@@ -161,6 +176,14 @@ public final class AstralRecord extends JavaPlugin {
             getServer().getPluginManager()
         );
         eventManager.registerHandler(
+            new ResourcePackJoinEventHandler(resourcePackService),
+            getServer().getPluginManager()
+        );
+        eventManager.registerHandler(
+            new ResourcePackStatusEventHandler(resourcePackService),
+            getServer().getPluginManager()
+        );
+        eventManager.registerHandler(
             new ItemInteractionBlockEventHandler(),
             getServer().getPluginManager()
         );
@@ -180,5 +203,9 @@ public final class AstralRecord extends JavaPlugin {
      */
     public ItemStackFactory getItemStackFactory() {
         return itemStackFactory;
+    }
+
+    public InventoryService getInventoryService() {
+        return inventoryService;
     }
 }

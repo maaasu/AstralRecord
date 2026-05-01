@@ -41,4 +41,14 @@ public final class ConfigKeys {
     public static final String API_AUTH_API_KEY = "api.auth.apiKey";
     public static final String API_TIMEOUT = "api.timeout";
     public static final String API_SSL_VERIFY_ENABLED = "api.ssl.verifyEnabled";
+
+    // Resource pack settings
+    public static final String RESOURCE_PACK_ENABLED = "resourcePack.enabled";
+    public static final String RESOURCE_PACK_URL = "resourcePack.url";
+    public static final String RESOURCE_PACK_SHA1 = "resourcePack.sha1";
+    public static final String RESOURCE_PACK_FORCE = "resourcePack.force";
+    public static final String RESOURCE_PACK_PROMPT = "resourcePack.prompt";
+    public static final String RESOURCE_PACK_SKIP_BEDROCK = "resourcePack.skipBedrock";
+    public static final String RESOURCE_PACK_BEDROCK_NAME_PREFIXES = "resourcePack.bedrockNamePrefixes";
+
 }

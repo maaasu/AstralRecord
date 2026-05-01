@@ -224,6 +224,15 @@ public class ItemService {
         }
     }
 
+    public @Nullable EquipmentInstance findEquipmentInstanceById(@NotNull String instanceId) {
+        try {
+            return itemRepository.findEquipmentInstanceById(instanceId);
+        } catch (Exception e) {
+            Logger.log(LogId.E_5202, e, instanceId);
+            return null;
+        }
+    }
+
     /**
      * ルーンインスタンスを API 経由で新規作成します。
      *
@@ -243,6 +252,15 @@ public class ItemService {
             return itemRepository.createRuneInstance(runeId, accountId, source, createdBy);
         } catch (Exception e) {
             Logger.log(LogId.E_5202, e, runeId);
+            return null;
+        }
+    }
+
+    public @Nullable RuneInstance findRuneInstanceById(@NotNull String instanceId) {
+        try {
+            return itemRepository.findRuneInstanceById(instanceId);
+        } catch (Exception e) {
+            Logger.log(LogId.E_5202, e, instanceId);
             return null;
         }
     }

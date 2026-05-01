@@ -575,6 +575,49 @@ public enum LogId {
     E_5502(5502),
     // endregion
 
+    // region /feature/resourcepack/service/ResourcePackService.java 5550-5599
+    /**
+     * Resource pack SHA-1 is invalid. url=%s, sha1=%s
+     */
+    W_5550(5550),
+    /**
+     * Resource pack request was sent. player=%s, url=%s, force=%s
+     */
+    I_5550(5550),
+    /**
+     * Bedrock player skipped Java resource pack request. player=%s
+     */
+    I_5551(5551),
+    /**
+     * Player accepted resource pack. player=%s
+     */
+    I_5552(5552),
+    /**
+     * Player downloaded resource pack. player=%s
+     */
+    I_5553(5553),
+    /**
+     * Player loaded resource pack successfully. player=%s
+     */
+    I_5554(5554),
+    /**
+     * Player discarded resource pack. player=%s
+     */
+    W_5551(5551),
+    /**
+     * Player declined resource pack. player=%s
+     */
+    W_5552(5552),
+    /**
+     * Resource pack status was not handled. player=%s, status=%s
+     */
+    D_5550(5550),
+    /**
+     * Resource pack handling failed. player=%s
+     */
+    E_5550(5550),
+    // endregion
+
     ;
     private final String id;
 

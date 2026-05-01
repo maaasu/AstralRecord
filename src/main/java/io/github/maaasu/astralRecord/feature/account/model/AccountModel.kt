@@ -14,6 +14,9 @@ enum class AccountMode(val value: Byte) {
     /** サーバー管理権限を持つプレイヤー */
     ADMIN(2);
 
+    fun shouldReflectInventoryToGui(): Boolean =
+        this == PLAYER || this == ADMIN
+
     companion object {
         /**
          * バイト値から AccountMode を取得します。

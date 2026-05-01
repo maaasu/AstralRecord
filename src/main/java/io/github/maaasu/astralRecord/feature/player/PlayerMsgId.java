@@ -295,6 +295,25 @@ public enum PlayerMsgId {
     P_5241(5241),
     // endregion
 
+    // region /feature/resourcepack/service/ResourcePackService.java 5550-5599
+    /**
+     * Resource pack download failed.
+     */
+    P_5550(5550),
+    /**
+     * Resource pack URL is invalid.
+     */
+    P_5551(5551),
+    /**
+     * Resource pack reload failed.
+     */
+    P_5552(5552),
+    /**
+     * Resource pack was declined.
+     */
+    P_5553(5553),
+    // endregion
+
     ;
 
     private final String id;

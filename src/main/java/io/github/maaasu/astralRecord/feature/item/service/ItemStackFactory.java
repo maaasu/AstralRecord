@@ -19,6 +19,7 @@ import io.github.maaasu.astralRecord.feature.status.model.StatusType;
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
 import io.github.maaasu.astralRecord.infrastructure.logging.Logger;
 import io.github.maaasu.astralRecord.infrastructure.util.ColorCodeUtil;
+import io.github.maaasu.astralRecord.infrastructure.util.CustomModelDataComponentUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Material;
@@ -63,6 +64,10 @@ public class ItemStackFactory {
     /** PDC キー: プレイヤーへ表示する icon Material 名 */
     private static final NamespacedKey KEY_ICON =
             new NamespacedKey("astralrecord", "icon");
+
+    /** PDC キー: カスタムモデルデータ */
+    private static final NamespacedKey KEY_CUSTOM_MODEL_DATA =
+            new NamespacedKey("astralrecord", "custom_model_data");
 
     /** PDC キー: カテゴリ */
     private static final NamespacedKey KEY_CATEGORY =
@@ -167,19 +172,21 @@ public class ItemStackFactory {
                 .toList());
 
         if (model.getCustomModelData() != null) {
-            meta.setItemModel(new NamespacedKey("astralrecord", "item/" + model.getCustomModelData()));
+            applyCustomModelData(meta, model.getCustomModelData());
         }
         applyVanillaHideFlags(meta);
 
-        // enchant がある場合はバニラエンチャントの輝きを付与（HIDE_ENCHANTS を除外）
+        // enchant がある場合はバニラエンチャントの輝きを付与（エンチャント名はHIDE_ENCHANTSで非表示）
         if (!instance.getEnchants().isEmpty()) {
             meta.addEnchant(Enchantment.UNBREAKING, 1, true);
-            meta.removeItemFlags(ItemFlag.HIDE_ENCHANTS);
         }
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         pdc.set(KEY_ITEM_ID, PersistentDataType.STRING, model.getId());
         pdc.set(KEY_ICON, PersistentDataType.STRING, model.getIcon().toUpperCase(Locale.ROOT));
+        if (model.getCustomModelData() != null) {
+            pdc.set(KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, model.getCustomModelData());
+        }
         pdc.set(KEY_CATEGORY, PersistentDataType.STRING, model.getCategory());
         pdc.set(KEY_RARITY, PersistentDataType.STRING, model.getRarity());
         pdc.set(KEY_EQUIPMENT_INSTANCE_ID, PersistentDataType.STRING, instance.getEquipmentInstanceId());
@@ -218,13 +225,16 @@ public class ItemStackFactory {
                 .toList());
 
         if (model.getCustomModelData() != null) {
-            meta.setItemModel(new NamespacedKey("astralrecord", "item/" + model.getCustomModelData()));
+            applyCustomModelData(meta, model.getCustomModelData());
         }
         applyVanillaHideFlags(meta);
 
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         pdc.set(KEY_ITEM_ID, PersistentDataType.STRING, model.getId());
         pdc.set(KEY_ICON, PersistentDataType.STRING, model.getIcon().toUpperCase(Locale.ROOT));
+        if (model.getCustomModelData() != null) {
+            pdc.set(KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, model.getCustomModelData());
+        }
         pdc.set(KEY_CATEGORY, PersistentDataType.STRING, model.getCategory());
         pdc.set(KEY_RARITY, PersistentDataType.STRING, model.getRarity());
         pdc.set(KEY_RUNE_INSTANCE_ID, PersistentDataType.STRING, instance.getRuneInstanceId());
@@ -285,6 +295,20 @@ public class ItemStackFactory {
                 .get(KEY_ICON, PersistentDataType.STRING);
     }
 
+    /**
+     * ItemStack に埋め込まれた customModelData を取得します。
+     *
+     * @param item 判定対象
+     * @return customModelData。未設定なら {@code null}
+     */
+    public static @Nullable Integer getCustomModelData(@NotNull ItemStack item) {
+        if (!item.hasItemMeta()) {
+            return null;
+        }
+        return item.getItemMeta().getPersistentDataContainer()
+                .get(KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER);
+    }
+
     // endregion
 
     // region --- テンプレート構築 ---
@@ -313,9 +337,9 @@ public class ItemStackFactory {
                 .map(c -> (Component) c)
                 .toList());
 
-        // --- ItemModel（リソースパック側のアイテムモデル参照） ---
+        // --- custom_model_data（リソースパック側のモデル切り替え用） ---
         if (model.getCustomModelData() != null) {
-            meta.setItemModel(new NamespacedKey("astralrecord", "item/" + model.getCustomModelData()));
+            applyCustomModelData(meta, model.getCustomModelData());
         }
 
         // 表示名/Loreは維持しつつ、可能な限りバニラ要素を非表示化
@@ -325,6 +349,9 @@ public class ItemStackFactory {
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         pdc.set(KEY_ITEM_ID, PersistentDataType.STRING, model.getId());
         pdc.set(KEY_ICON, PersistentDataType.STRING, model.getIcon().toUpperCase(Locale.ROOT));
+        if (model.getCustomModelData() != null) {
+            pdc.set(KEY_CUSTOM_MODEL_DATA, PersistentDataType.INTEGER, model.getCustomModelData());
+        }
         pdc.set(KEY_CATEGORY, PersistentDataType.STRING, model.getCategory());
         pdc.set(KEY_RARITY, PersistentDataType.STRING, model.getRarity());
 
@@ -915,6 +942,10 @@ public class ItemStackFactory {
             return;
         }
         meta.addItemFlags(VANILLA_HIDE_FLAGS);
+    }
+
+    private static void applyCustomModelData(@NotNull ItemMeta meta, int customModelData) {
+        CustomModelDataComponentUtil.writeFromInt(meta, customModelData);
     }
 
     // endregion
