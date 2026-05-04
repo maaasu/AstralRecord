@@ -115,5 +115,11 @@ public class AccountService {
         accountRepository.switchActiveAccount(userId, accountUuid, userId);
         Logger.log(LogId.I_5101, accountUuid, userId);
     }
+
+    public AccountModel setMode(UUID accountUuid, AccountMode mode, UUID updatedBy) {
+        AccountModel updated = accountRepository.updateMode(accountUuid, mode, updatedBy);
+        Logger.log(LogId.I_5101, accountUuid, updatedBy);
+        return updated;
+    }
 }
 

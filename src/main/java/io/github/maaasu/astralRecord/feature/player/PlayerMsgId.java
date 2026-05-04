@@ -295,21 +295,40 @@ public enum PlayerMsgId {
     P_5241(5241),
     // endregion
 
+    // region /feature/inventory/command/InventoryCommand.java 5250-5269
+    /**
+     * 現在の mode では AstralRecord インベントリを反映しません。
+     */
+    P_5250(5250),
+    /**
+     * 無効なインベントリタイプです。指定可能: {0}
+     */
+    P_5251(5251),
+    /**
+     * InventoryService が初期化されていません。
+     */
+    P_5252(5252),
+    /**
+     * インベントリを切り替えました: {0}
+     */
+    P_5253(5253),
+    // endregion
+
     // region /feature/resourcepack/service/ResourcePackService.java 5550-5599
     /**
-     * Resource pack download failed.
+     * リソースパックのダウンロードに失敗しました。
      */
     P_5550(5550),
     /**
-     * Resource pack URL is invalid.
+     * リソースパックのURLが不正です。
      */
     P_5551(5551),
     /**
-     * Resource pack reload failed.
+     * クライアント側でリソースパックの再読み込みに失敗しました。
      */
     P_5552(5552),
     /**
-     * Resource pack was declined.
+     * リソースパックが拒否されました。
      */
     P_5553(5553),
     // endregion

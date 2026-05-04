@@ -15,7 +15,7 @@ enum class AccountMode(val value: Byte) {
     ADMIN(2);
 
     fun shouldReflectInventoryToGui(): Boolean =
-        this == PLAYER || this == ADMIN
+        this == PLAYER
 
     companion object {
         /**

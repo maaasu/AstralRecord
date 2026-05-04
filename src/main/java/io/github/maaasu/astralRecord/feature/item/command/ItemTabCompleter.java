@@ -8,15 +8,12 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 
 /**
- * /item コマンドのタブ補完実装クラス。
+ * /item のタブ補完クラス。
  */
 public class ItemTabCompleter extends AstTabCompleter {
 
     private final ItemService itemService;
 
-    /**
-     * ItemTabCompleter を初期化します。
-     */
     public ItemTabCompleter(@NotNull ItemService itemService) {
         super(true);
         this.itemService = itemService;
@@ -24,24 +21,12 @@ public class ItemTabCompleter extends AstTabCompleter {
 
     @Override
     protected List<String> getPlayerCompletions(@NotNull AstPlayer player, @NotNull String[] args) {
-        List<String> subCommands = completeAtPosition(args, 0, "load", "list", "info", "get");
+        List<String> subCommands = completeAtPosition(args, 0, "load", "get");
         if (!subCommands.isEmpty()) {
             return subCommands;
         }
 
-        if (args.length == 2 && args[0].equalsIgnoreCase("load")) {
-            return itemService.getLoadedItemIds();
-        }
-
-        if (args.length == 2 && args[0].equalsIgnoreCase("list")) {
-            return itemService.getLoadedCategories();
-        }
-
-        if (args.length == 2 && args[0].equalsIgnoreCase("info")) {
-            return itemService.getLoadedItemIds();
-        }
-
-        if (args.length == 2 && args[0].equalsIgnoreCase("get")) {
+        if (args.length == 2 && (args[0].equalsIgnoreCase("load") || args[0].equalsIgnoreCase("get"))) {
             return itemService.getLoadedItemIds();
         }
 
@@ -52,4 +37,3 @@ public class ItemTabCompleter extends AstTabCompleter {
         return List.of();
     }
 }
-

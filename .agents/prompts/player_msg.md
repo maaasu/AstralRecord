@@ -11,6 +11,7 @@
 - コードへ直接メッセージ文言を書かない。
 - プレイヤー通知は既存のメッセージ管理を経由する。
 - `player.properties` と `MsgId` はセットで更新する。
+- `sendInfo/sendSuccess/sendError/sendMessage` に文字列リテラルを直接渡さない。
 
 ## 更新チェックリスト
 
@@ -18,6 +19,7 @@
 2. `MsgId` に対応する ID を追加・修正する。
 3. `PlayerMsgResource` や `AstPlayer.sendMessage(...)` 経由で呼ぶ。
 4. 色コード、プレースホルダ、既存の文体が揃っているか確認する。
+5. 変更ファイルに対して `sendInfo(` `sendSuccess(` `sendError(` の引数がメッセージID経由になっているか最終確認する。
 
 ## 非推奨
 

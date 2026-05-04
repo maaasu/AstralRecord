@@ -11,6 +11,15 @@ package io.github.maaasu.astralRecord.infrastructure.logging;
  */
 public enum LogId {
 
+    // ==================== plugin lifecycle ====================
+
+    // region /AstralRecord.java
+    /**
+     * 基盤セットアップに失敗しました
+     */
+    E_900(900),
+    // endregion
+
     // ==================== infrastructure ====================
 
     // region /util/YamlLoaderUtil.java
@@ -34,6 +43,21 @@ public enum LogId {
      * YAMLファイルのセーブに失敗しました: %s
      */
     E_1002(1002),
+    // endregion
+
+    // region /infrastructure/logging/AuditLoggerRegistry.java
+    /**
+     * AuditLogger を初期化しました: %s
+     */
+    D_2100(2100),
+    /**
+     * AuditLogger の初期化をスキップしました（メタ情報またはデフォルトコンストラクタなし）: %s
+     */
+    W_2100(2100),
+    /**
+     * AuditLogger エントリのインスタンス生成に失敗しました: クラス=%s, 理由=%s
+     */
+    W_2101(2101),
     // endregion
 
     // ==================== core ====================
@@ -82,6 +106,10 @@ public enum LogId {
      * イベントハンドラーを登録しました: %s
      */
     D_3000(3000),
+    /**
+     * イベントハンドラーが無効のため登録をスキップしました: %s
+     */
+    D_3001(3001),
     // endregion
 
     // region /database/sqlserver/SqlServerManager.java
@@ -338,6 +366,10 @@ public enum LogId {
      */
     W_5070(5070),
     /**
+     * プレイヤーデータ保存に失敗しました: タスク=%s, 契機=%s, プレイヤー=%s, 理由=%s
+     */
+    W_5071(5071),
+    /**
      * プレイヤーログイン処理に失敗しました: %s
      */
     E_5070(5070),
@@ -356,11 +388,11 @@ public enum LogId {
 
     // region /feature/account/repository/AccountRepository.kt
     /**
-     * アカウント一覧を取得しました (API): userId=%s (%d件)
+     * アカウント一覧を取得しました (API): ユーザーID=%s (%d件)
      */
     D_5150(5150),
     /**
-     * アカウントが見つかりませんでした (API): userId=%s
+     * アカウントが見つかりませんでした (API): ユーザーID=%s
      */
     W_5150(5150),
     /**
@@ -399,15 +431,15 @@ public enum LogId {
 
     // region /feature/item/repository/ItemRepository.kt /feature/item/service/ItemService.java
     /**
-     * アイテムを取得しました (API): category=%s, id=%s
+     * アイテムを取得しました (API): カテゴリ=%s, ID=%s
      */
     D_5200(5200),
     /**
-     * アイテムを使用しました: player=%s, item=%s, applied=%d, skipped=%d
+     * アイテムを使用しました: プレイヤー=%s, アイテム=%s, 適用=%d, スキップ=%d
      */
     I_5200(5200),
     /**
-     * カテゴリのアイテムを一括ロードしました (API): category=%s (%d件)
+     * カテゴリのアイテムを一括ロードしました (API): カテゴリ=%s (%d件)
      */
     I_5202(5202),
     /**
@@ -415,47 +447,55 @@ public enum LogId {
      */
     I_5203(5203),
     /**
-     * アイテムが見つかりませんでした (API): category=%s, id=%s
+     * アイテムが見つかりませんでした (API): カテゴリ=%s, ID=%s
      */
     W_5200(5200),
     /**
-     * 消耗品ではないアイテムを使用しようとしました: item=%s, category=%s
+     * 消耗品ではないアイテムを使用しようとしました: アイテム=%s, カテゴリ=%s
      */
     W_5201(5201),
     /**
-     * consumable 定義が存在しません: item=%s
+     * consumable 定義が存在しません: アイテム=%s
      */
     W_5202(5202),
     /**
-     * 未対応の消耗品効果タイプを検出しました: item=%s
+     * 未対応の消耗品効果タイプを検出しました: アイテム=%s
      */
     W_5203(5203),
     /**
-     * BUFF 効果に buffId が設定されていません: item=%s
+     * BUFF 効果に buffId が設定されていません: アイテム=%s
      */
     W_5204(5204),
     /**
-     * STATUS 効果に status が設定されていません: item=%s
+     * STATUS 効果に status が設定されていません: アイテム=%s
      */
     W_5205(5205),
     /**
-     * STATUS 効果の status が不正です: item=%s, status=%s
+     * STATUS 効果の status が不正です: アイテム=%s, ステータス=%s
      */
     W_5206(5206),
     /**
-     * STATUS 効果の対象が未対応です: item=%s, status=%s
+     * STATUS 効果の対象が未対応です: アイテム=%s, ステータス=%s
      */
     W_5207(5207),
     /**
-     * 未対応カテゴリを指定しました (API): category=%s
+     * 未対応カテゴリを指定しました (API): カテゴリ=%s
      */
     W_5208(5208),
     /**
-     * BUFF 効果を適用しました: item=%s, buffId=%s, active=%d
+     * インベントリスナップショットのエンコードに失敗しました: %s
+     */
+    W_5250(5250),
+    /**
+     * インベントリスナップショットのデコードに失敗しました: %s
+     */
+    W_5251(5251),
+    /**
+     * BUFF 効果を適用しました: アイテム=%s, buffId=%s, 有効数=%d
      */
     D_5201(5201),
     /**
-     * カテゴリのアイテム一覧を取得しました (API): category=%s (%d件)
+     * カテゴリのアイテム一覧を取得しました (API): カテゴリ=%s (%d件)
      */
     D_5202(5202),
     /**
@@ -490,7 +530,7 @@ public enum LogId {
      */
     D_5210(5210),
     /**
-     * ItemStack テンプレートを構築しました: category=%s, id=%s
+     * ItemStack テンプレートを構築しました: カテゴリ=%s, ID=%s
      */
     D_5211(5211),
     // endregion
@@ -577,45 +617,52 @@ public enum LogId {
 
     // region /feature/resourcepack/service/ResourcePackService.java 5550-5599
     /**
-     * Resource pack SHA-1 is invalid. url=%s, sha1=%s
+     * リソースパックの SHA-1 が不正です: URL=%s, SHA-1=%s
      */
     W_5550(5550),
     /**
-     * Resource pack request was sent. player=%s, url=%s, force=%s
+     * リソースパック要求を送信しました: プレイヤー=%s, URL=%s, 強制=%s
      */
     I_5550(5550),
     /**
-     * Bedrock player skipped Java resource pack request. player=%s
+     * Bedrock プレイヤーのため Java リソースパック要求をスキップしました: プレイヤー=%s
      */
     I_5551(5551),
     /**
-     * Player accepted resource pack. player=%s
+     * プレイヤーがリソースパックを承諾しました: プレイヤー=%s
      */
     I_5552(5552),
     /**
-     * Player downloaded resource pack. player=%s
+     * プレイヤーがリソースパックをダウンロードしました: プレイヤー=%s
      */
     I_5553(5553),
     /**
-     * Player loaded resource pack successfully. player=%s
+     * プレイヤーがリソースパックを正常に読み込みました: プレイヤー=%s
      */
     I_5554(5554),
     /**
-     * Player discarded resource pack. player=%s
+     * プレイヤーがリソースパック適用を破棄しました: プレイヤー=%s
      */
     W_5551(5551),
     /**
-     * Player declined resource pack. player=%s
+     * プレイヤーがリソースパックを拒否しました: プレイヤー=%s
      */
     W_5552(5552),
     /**
-     * Resource pack status was not handled. player=%s, status=%s
+     * 未処理のリソースパックステータスです: プレイヤー=%s, ステータス=%s
      */
     D_5550(5550),
     /**
-     * Resource pack handling failed. player=%s
+     * リソースパック処理に失敗しました: プレイヤー=%s
      */
     E_5550(5550),
+    // endregion
+
+    // region /feature/menu/event/MenuOpenEventHandler.java 5600-5609
+    /**
+     * メニューイベント処理に失敗しました: %s
+     */
+    E_5600(5600),
     // endregion
 
     ;

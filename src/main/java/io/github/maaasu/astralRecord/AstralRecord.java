@@ -4,14 +4,21 @@ import io.github.maaasu.astralRecord.core.CommandRegister;
 import io.github.maaasu.astralRecord.core.event.EventManager;
 import io.github.maaasu.astralRecord.feature.account.repository.AccountRepository;
 import io.github.maaasu.astralRecord.feature.account.service.AccountService;
+import io.github.maaasu.astralRecord.feature.hud.service.PlayerHudService;
 import io.github.maaasu.astralRecord.feature.item.event.ItemInteractionBlockEventHandler;
 import io.github.maaasu.astralRecord.feature.inventory.repository.InventoryRepository;
+import io.github.maaasu.astralRecord.feature.inventory.service.InventorySaveTask;
 import io.github.maaasu.astralRecord.feature.inventory.service.InventoryService;
 import io.github.maaasu.astralRecord.feature.item.service.ItemService;
 import io.github.maaasu.astralRecord.feature.item.service.ItemStackFactory;
 import io.github.maaasu.astralRecord.feature.item.view.ItemStackPacketAdapter;
 import io.github.maaasu.astralRecord.feature.loot.service.LootService;
+import io.github.maaasu.astralRecord.feature.menu.event.MenuOpenEventHandler;
+import io.github.maaasu.astralRecord.feature.menu.repository.MenuShortcutRepository;
+import io.github.maaasu.astralRecord.feature.menu.view.MenuView;
 import io.github.maaasu.astralRecord.feature.player.event.PlayerJoinEventHandler;
+import io.github.maaasu.astralRecord.feature.player.event.PlayerModeEventHandler;
+import io.github.maaasu.astralRecord.feature.player.save.PlayerSaveCoordinator;
 import io.github.maaasu.astralRecord.feature.player.service.PlayerService;
 import io.github.maaasu.astralRecord.feature.resourcepack.event.ResourcePackJoinEventHandler;
 import io.github.maaasu.astralRecord.feature.resourcepack.event.ResourcePackStatusEventHandler;
@@ -29,6 +36,7 @@ import io.github.maaasu.astralRecord.infrastructure.database.file.yaml.config.Ya
 import io.github.maaasu.astralRecord.infrastructure.database.sqlserver.SqlServerManager;
 import io.github.maaasu.astralRecord.infrastructure.logging.AuditLogger;
 import io.github.maaasu.astralRecord.infrastructure.logging.AuditLoggerRegistry;
+import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
 import io.github.maaasu.astralRecord.infrastructure.logging.Logger;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -40,10 +48,15 @@ public final class AstralRecord extends JavaPlugin {
     private ItemService itemService;
     private LootService lootService;
     private ItemStackFactory itemStackFactory;
+    private AccountService accountService;
     private UserService userService;
     private PlayerService playerService;
     private InventoryService inventoryService;
+    private StatusService statusService;
+    private PlayerHudService playerHudService;
     private ResourcePackService resourcePackService;
+    private MenuView menuView;
+    private MenuShortcutRepository menuShortcutRepository;
     private EventManager eventManager;
 
     @Override
@@ -80,19 +93,14 @@ public final class AstralRecord extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (playerHudService != null) {
+            playerHudService.stop();
+        }
         // AuditLoggerのシャットダウン
         AuditLogger.shutdownDefault();
         AuditLoggerRegistry.shutdownAll();
         // コマンドマネージャーのシャットダウン
         CommandManager.getInstance().shutdown();
-    }
-
-    /**
-     * 起動時のメッセージとログ設定を表示
-     */
-    private void showStartupMessage() {
-        Logger.info("AstralSaga has been enabled.");
-        Logger.debug("Debug mode is enabled.");
     }
 
     /**
@@ -119,7 +127,7 @@ public final class AstralRecord extends JavaPlugin {
 
             return true;
         }catch (Exception e) {
-            Logger.error("Infrastructure setup failed.", e);
+            Logger.log(LogId.E_900, e);
             return false;
         }
     }
@@ -130,7 +138,7 @@ public final class AstralRecord extends JavaPlugin {
     private void setupFeature() {
         // account
         AccountRepository accountRepository = new AccountRepository();
-        AccountService accountService = new AccountService(accountRepository);
+        accountService = new AccountService(accountRepository);
 
         // user
         UserRepository userRepository = new UserRepository();
@@ -141,13 +149,28 @@ public final class AstralRecord extends JavaPlugin {
         inventoryService = new InventoryService(inventoryRepository, itemService, itemStackFactory);
 
         // status
-        StatusService statusService = new StatusService();
+        statusService = new StatusService();
+        playerHudService = new PlayerHudService(statusService);
+
+        PlayerSaveCoordinator playerSaveCoordinator = new PlayerSaveCoordinator(
+            java.util.List.of(new InventorySaveTask(inventoryService))
+        );
 
         // player
-        playerService = new PlayerService(userService, accountService, inventoryService, statusService);
+        playerService = new PlayerService(
+            userService,
+            accountService,
+            inventoryService,
+            statusService,
+            playerSaveCoordinator
+        );
 
         // resource pack
         resourcePackService = new ResourcePackService(ConfigProperties.getInstance());
+
+        // menu
+        menuShortcutRepository = new MenuShortcutRepository(this);
+        menuView = new MenuView(this);
 
         // item & loot
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
@@ -187,6 +210,15 @@ public final class AstralRecord extends JavaPlugin {
             new ItemInteractionBlockEventHandler(),
             getServer().getPluginManager()
         );
+        eventManager.registerHandler(
+            new MenuOpenEventHandler(this, menuView, menuShortcutRepository, inventoryService),
+            getServer().getPluginManager()
+        );
+        eventManager.registerHandler(
+            new PlayerModeEventHandler(),
+            getServer().getPluginManager()
+        );
+        playerHudService.start(this);
     }
     /**
      * AstralSaga のインスタンスを取得します。
@@ -207,5 +239,17 @@ public final class AstralRecord extends JavaPlugin {
 
     public InventoryService getInventoryService() {
         return inventoryService;
+    }
+
+    public UserService getUserService() {
+        return userService;
+    }
+
+    public AccountService getAccountService() {
+        return accountService;
+    }
+
+    public StatusService getStatusService() {
+        return statusService;
     }
 }

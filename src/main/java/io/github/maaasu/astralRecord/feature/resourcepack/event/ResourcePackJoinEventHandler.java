@@ -8,21 +8,36 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.player.PlayerJoinEvent;
 
 /**
- * Requests the resource pack when a Java Edition player joins.
+ * Java Edition プレイヤーの参加時にリソースパック要求を送信するイベントハンドラ。
  */
 public class ResourcePackJoinEventHandler extends AbstractEventHandler {
 
     private final ResourcePackService resourcePackService;
 
+    /**
+     * リソースパック参加イベントハンドラを生成します。
+     *
+     * @param resourcePackService リソースパックサービス
+     */
     public ResourcePackJoinEventHandler(ResourcePackService resourcePackService) {
         this.resourcePackService = resourcePackService;
     }
 
+    /**
+     * リソースパック機能が有効な場合のみイベントハンドラを登録します。
+     *
+     * @return 有効なら true
+     */
     @Override
     public boolean isEnabled() {
         return resourcePackService.isEnabled();
     }
 
+    /**
+     * プレイヤー参加時にリソースパック要求を送信します。
+     *
+     * @param event プレイヤー参加イベント
+     */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerJoin(PlayerJoinEvent event) {
         runSafely(() -> resourcePackService.applyTo(event.getPlayer()), LogId.E_5550, event.getPlayer().getName());

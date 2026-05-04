@@ -1,7 +1,9 @@
 package io.github.maaasu.astralRecord.feature.item.event;
 
 import io.github.maaasu.astralRecord.core.event.AbstractEventHandler;
+import io.github.maaasu.astralRecord.feature.account.model.AccountMode;
 import io.github.maaasu.astralRecord.feature.item.service.ItemStackFactory;
+import io.github.maaasu.astralRecord.feature.player.AstPlayerCache;
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -28,6 +30,9 @@ public class ItemInteractionBlockEventHandler extends AbstractEventHandler {
             if (action == Action.PHYSICAL) {
                 return;
             }
+            if (!isPlayerMode(event.getPlayer())) {
+                return;
+            }
 
             if (!isAstralItem(event.getItem())) {
                 return;
@@ -45,6 +50,9 @@ public class ItemInteractionBlockEventHandler extends AbstractEventHandler {
             if (!isAstralItem(getItemInHand(event.getPlayer(), event.getHand()))) {
                 return;
             }
+            if (!isPlayerMode(event.getPlayer())) {
+                return;
+            }
             event.setCancelled(true);
         }, LogId.E_5200, event.getPlayer().getName());
     }
@@ -53,6 +61,9 @@ public class ItemInteractionBlockEventHandler extends AbstractEventHandler {
     public void onPlayerInteractAtEntity(PlayerInteractAtEntityEvent event) {
         runSafely(() -> {
             if (!isAstralItem(getItemInHand(event.getPlayer(), event.getHand()))) {
+                return;
+            }
+            if (!isPlayerMode(event.getPlayer())) {
                 return;
             }
             event.setCancelled(true);
@@ -68,6 +79,9 @@ public class ItemInteractionBlockEventHandler extends AbstractEventHandler {
             if (!isAstralItem(player.getInventory().getItemInMainHand())) {
                 return;
             }
+            if (!isPlayerMode(player)) {
+                return;
+            }
             event.setCancelled(true);
         }, LogId.E_5200, event.getEntity().getName());
     }
@@ -76,6 +90,9 @@ public class ItemInteractionBlockEventHandler extends AbstractEventHandler {
     public void onPlayerItemConsume(PlayerItemConsumeEvent event) {
         runSafely(() -> {
             if (!isAstralItem(event.getItem())) {
+                return;
+            }
+            if (!isPlayerMode(event.getPlayer())) {
                 return;
             }
             event.setCancelled(true);
@@ -91,6 +108,11 @@ public class ItemInteractionBlockEventHandler extends AbstractEventHandler {
         return hand == EquipmentSlot.OFF_HAND
                 ? player.getInventory().getItemInOffHand()
                 : player.getInventory().getItemInMainHand();
+    }
+
+    private static boolean isPlayerMode(@NotNull Player player) {
+        var astPlayer = AstPlayerCache.get(player);
+        return astPlayer != null && astPlayer.getAccount().getMode() == AccountMode.PLAYER;
     }
 }
 

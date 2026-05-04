@@ -47,3 +47,11 @@
   - `MsgId` や `player.properties` に関わる変更で読む。
 - `.agents/prompts/database.md`
   - DB 契約や DB ドキュメントに関わる変更で読む。
+
+## AI 作業手順（必須）
+
+- 作業開始時に必ず `AGENTS.md`（本ファイル）を最初に読む。
+- 変更内容に応じて、対応する `.agents/prompts/*.md` を作業前に読む。
+  - ログ変更は `.agents/prompts/logger.md` を必ず読む。
+- ファイル読み取り時は UTF-8 を優先し、文字化けがある場合はエンコーディングを切り替えて再読する。
+- 文字化けした状態のまま実装を進めない。

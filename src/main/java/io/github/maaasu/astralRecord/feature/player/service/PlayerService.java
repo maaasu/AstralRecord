@@ -5,6 +5,8 @@ import io.github.maaasu.astralRecord.feature.account.service.AccountService;
 import io.github.maaasu.astralRecord.feature.inventory.service.InventoryService;
 import io.github.maaasu.astralRecord.feature.player.AstPlayerCache;
 import io.github.maaasu.astralRecord.feature.player.model.AstPlayer;
+import io.github.maaasu.astralRecord.feature.player.save.PlayerSaveCoordinator;
+import io.github.maaasu.astralRecord.feature.player.save.PlayerSaveTrigger;
 import io.github.maaasu.astralRecord.feature.status.service.StatusService;
 import io.github.maaasu.astralRecord.feature.user.model.UserModel;
 import io.github.maaasu.astralRecord.feature.user.service.UserService;
@@ -25,17 +27,20 @@ public class PlayerService {
     private final AccountService accountService;
     private final InventoryService inventoryService;
     private final StatusService statusService;
+    private final PlayerSaveCoordinator playerSaveCoordinator;
 
     public PlayerService(
         UserService userService,
         AccountService accountService,
         InventoryService inventoryService,
-        StatusService statusService
+        StatusService statusService,
+        PlayerSaveCoordinator playerSaveCoordinator
     ) {
         this.userService = userService;
         this.accountService = accountService;
         this.inventoryService = inventoryService;
         this.statusService = statusService;
+        this.playerSaveCoordinator = playerSaveCoordinator;
     }
 
     /**
@@ -76,6 +81,10 @@ public class PlayerService {
      * @param player ログアウトした Bukkit プレイヤー
      */
     public void onPlayerQuit(Player player) {
+        var astPlayer = AstPlayerCache.get(player);
+        if (astPlayer != null) {
+            playerSaveCoordinator.save(astPlayer, PlayerSaveTrigger.LOGOUT);
+        }
         AstPlayerCache.remove(player.getUniqueId());
     }
 }

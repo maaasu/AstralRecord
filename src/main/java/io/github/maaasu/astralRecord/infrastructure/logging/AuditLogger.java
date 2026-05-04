@@ -200,7 +200,7 @@ public final class AuditLogger<E extends LogEntry> {
 
         } catch (IOException e) {
             // ここでのエラーは Logger 経由で出すと無限ループになる可能性があるため注意
-            System.err.println("Failed to write audit log batch: " + e.getMessage());
+            System.err.println("監査ログバッチの書き込みに失敗しました: " + e.getMessage());
         }
 
         // まだキューに残っている場合は再度呼び出し

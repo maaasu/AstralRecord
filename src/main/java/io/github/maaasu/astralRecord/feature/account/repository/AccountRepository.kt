@@ -168,6 +168,36 @@ class AccountRepository {
         }
     }
 
+    /**
+     * account.mode 繧呈峩譁ｰ縺励∪縺吶・
+     * PUT /api/account/{targetUuid}
+     */
+    fun updateMode(targetUuid: UUID, mode: AccountMode, updatedBy: UUID): AccountModel {
+        val path = "/api/account/$targetUuid"
+        val body = buildAccountUpdateJson(isActive = null, mode = mode, updatedBy = updatedBy)
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path)
+                    .PUT(HttpRequest.BodyPublishers.ofString(body))
+                    .build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                if (response.statusCode() !in 200..299) {
+                    Logger.log(LogId.E_5153, "HTTP ${response.statusCode()} for PUT $path")
+                    throw IOException("Unexpected status ${response.statusCode()} for PUT $path")
+                }
+                Logger.log(LogId.D_5153, targetUuid, mode.value)
+                return parseAccountModel(response.body())
+            }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5153, e)
+            throw RuntimeException(e)
+        } catch (e: IOException) {
+            Logger.log(LogId.E_5153, e)
+            throw e
+        }
+    }
+
     // -------------------------------------------------------
     // JSON マッピング
     // -------------------------------------------------------
@@ -183,10 +213,22 @@ class AccountRepository {
     }
 
     private fun buildSwitchActiveAccountJson(updatedBy: UUID): String {
+        return buildAccountUpdateJson(isActive = true, mode = null, updatedBy = updatedBy)
+    }
+
+    private fun buildAccountUpdateJson(isActive: Boolean?, mode: AccountMode?, updatedBy: UUID): String {
         return ApiRequestUtil.buildJsonBody {
             addProperty("accountName", null as String?)
-            addProperty("isActive", true)
-            addProperty("mode", null as Number?)
+            if (isActive != null) {
+                addProperty("isActive", isActive)
+            } else {
+                addProperty("isActive", null as Boolean?)
+            }
+            if (mode != null) {
+                addProperty("mode", mode.value.toInt())
+            } else {
+                addProperty("mode", null as Number?)
+            }
             addProperty("updatedBy", updatedBy.toString())
         }
     }

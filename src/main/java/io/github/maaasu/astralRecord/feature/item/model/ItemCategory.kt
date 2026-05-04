@@ -11,6 +11,7 @@ enum class ItemCategory(val apiValue: String) {
     EQUIPMENT("equipment"),
     MATERIAL("material"),
     CONSUMABLE("consumable"),
+    RUNE("rune"),
     UNKNOWN("unknown"),
     ;
 

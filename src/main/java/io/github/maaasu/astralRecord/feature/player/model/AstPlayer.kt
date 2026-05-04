@@ -29,7 +29,7 @@ import org.bukkit.entity.Player
 data class AstPlayer(
     val bukkit: Player,
     var user: UserModel,
-    val account: AccountModel,
+    var account: AccountModel,
 ) {
     var statusSnapshot: StatusSnapshot = StatusSnapshot.empty()
     val activeBuffs: MutableList<ActiveBuff> = mutableListOf()
@@ -45,7 +45,9 @@ data class AstPlayer(
     }
 
     /**
-     * Returns whether this player should be treated as a Bedrock Edition player.
+     * このプレイヤーを Bedrock Edition プレイヤーとして扱うべきか判定します。
+     *
+     * @return Bedrock Edition プレイヤーとして扱うなら true
      */
     fun isBedrock(): Boolean {
         val prefixes = ConfigProperties.getInstance().resourcePackBedrockNamePrefixes ?: return false
@@ -81,7 +83,10 @@ data class AstPlayer(
      * @param newAccount 反映対象の [AccountModel]
      */
     fun applyAccountMode(newAccount: AccountModel) {
+        account = newAccount
         if (newAccount.mode != AccountMode.PLAYER) {
+            applyReach(Attribute.ENTITY_INTERACTION_RANGE, 3.0)
+            applyReach(Attribute.BLOCK_INTERACTION_RANGE, 4.5)
             return
         }
 

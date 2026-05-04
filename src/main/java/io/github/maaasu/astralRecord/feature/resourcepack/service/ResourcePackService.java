@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
- * Sends the Java Edition resource pack request and handles client status updates.
+ * Java Edition 向けリソースパック要求の送信と、クライアント側ステータス通知の処理を担当します。
  */
 public class ResourcePackService {
 
@@ -24,14 +24,29 @@ public class ResourcePackService {
 
     private final ConfigProperties configProperties;
 
+    /**
+     * リソースパックサービスを生成します。
+     *
+     * @param configProperties プラグイン設定
+     */
     public ResourcePackService(ConfigProperties configProperties) {
         this.configProperties = configProperties;
     }
 
+    /**
+     * リソースパック要求を送信できる設定か判定します。
+     *
+     * @return 有効なら true
+     */
     public boolean isEnabled() {
         return configProperties.isResourcePackEnabled() && !getPackUrl().isBlank();
     }
 
+    /**
+     * 指定プレイヤーへリソースパック要求を送信します。
+     *
+     * @param player 送信対象プレイヤー
+     */
     public void applyTo(Player player) {
         if (!isEnabled()) {
             return;
@@ -67,10 +82,22 @@ public class ResourcePackService {
         );
     }
 
+    /**
+     * 指定 ID がこのサービスで送信したリソースパック ID か判定します。
+     *
+     * @param packId 判定対象リソースパック ID
+     * @return 管理対象なら true
+     */
     public boolean isManagedPack(UUID packId) {
         return getPackId().equals(packId);
     }
 
+    /**
+     * リソースパックのクライアント側ステータスを処理します。
+     *
+     * @param player 通知元プレイヤー
+     * @param status リソースパックステータス
+     */
     public void handleStatus(Player player, PlayerResourcePackStatusEvent.Status status) {
         switch (status) {
             case ACCEPTED -> Logger.log(LogId.I_5552, player.getName());
@@ -85,29 +112,58 @@ public class ResourcePackService {
         }
     }
 
+    /**
+     * リソースパック拒否時の通知とログを処理します。
+     *
+     * @param player 拒否したプレイヤー
+     */
     private void handleDeclined(Player player) {
         sendPlayerMessage(player, PlayerMsgId.P_5553);
         Logger.log(LogId.W_5552, player.getName());
     }
 
+    /**
+     * 設定済みリソースパック URL を返します。
+     *
+     * @return 前後空白を除去した URL
+     */
     private String getPackUrl() {
         return configProperties.getResourcePackUrl().trim();
     }
 
+    /**
+     * リソースパック URL から固定 UUID を生成します。
+     *
+     * @return リソースパック ID
+     */
     private UUID getPackId() {
         return UUID.nameUUIDFromBytes(getPackUrl().getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Bedrock プレイヤー向けに Java リソースパック要求をスキップすべきか判定します。
+     *
+     * @param player 判定対象プレイヤー
+     * @return スキップ対象なら true
+     */
     private boolean shouldSkipBedrock(Player player) {
         if (!configProperties.isResourcePackSkipBedrock()) {
             return false;
         }
 
         var p = AstPlayerCache.get(player);
-        if (p == null) {return false;}
+        if (p == null) {
+            return false;
+        }
         return p.isBedrock();
     }
 
+    /**
+     * SHA-1 文字列として妥当か判定します。
+     *
+     * @param value 判定対象文字列
+     * @return 40 文字の 16 進文字列なら true
+     */
     private static boolean isValidSha1(String value) {
         if (value.length() != SHA1_LENGTH) {
             return false;
@@ -125,6 +181,12 @@ public class ResourcePackService {
         return true;
     }
 
+    /**
+     * 空文字列を null に変換します。
+     *
+     * @param value 変換対象文字列
+     * @return trim 後に空なら null、それ以外は trim 済み文字列
+     */
     private static @Nullable String blankToNull(String value) {
         if (value == null) {
             return null;
@@ -133,6 +195,12 @@ public class ResourcePackService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    /**
+     * プレイヤー向けメッセージ定義を使って通知します。
+     *
+     * @param player 通知対象プレイヤー
+     * @param msgId メッセージ ID
+     */
     private static void sendPlayerMessage(Player player, PlayerMsgId msgId) {
         player.sendMessage(PlayerMsgResource.getMessage(msgId.getId()));
     }

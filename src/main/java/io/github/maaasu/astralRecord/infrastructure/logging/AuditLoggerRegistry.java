@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 
 /**
  * クラスパス上の {@link LogEntry} 実装クラスをスキャンし、
@@ -35,8 +34,6 @@ import java.util.logging.Logger;
  * }</pre>
  */
 public final class AuditLoggerRegistry {
-
-    private static final Logger LOGGER = Logger.getLogger(AuditLoggerRegistry.class.getName());
 
     /** エントリクラス → AuditLogger のマップ */
     @SuppressWarnings("rawtypes")
@@ -75,10 +72,9 @@ public final class AuditLoggerRegistry {
             if (logger != null) {
                 registry.put(clazz, logger);
                 logger.init();
-                LOGGER.info("[AuditLoggerRegistry] Initialized AuditLogger for: " + clazz.getSimpleName());
+                Logger.log(LogId.D_2100, clazz.getSimpleName());
             } else {
-                LOGGER.warning("[AuditLoggerRegistry] Skipped (no @LogEntryMeta and no default constructor): "
-                        + clazz.getName());
+                Logger.log(LogId.W_2100, clazz.getName());
             }
         }
 
@@ -147,7 +143,7 @@ public final class AuditLoggerRegistry {
         } catch (NoSuchMethodException e) {
             // デフォルトコンストラクタなし → スキップ
         } catch (Exception e) {
-            LOGGER.warning("[AuditLoggerRegistry] Failed to instantiate " + clazz.getName() + ": " + e.getMessage());
+            Logger.log(LogId.W_2101, clazz.getName(), e.getMessage());
         }
 
         return null;

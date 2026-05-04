@@ -193,6 +193,39 @@ class UserRepository {
         }
     }
 
+    /**
+     * user.permission 繧呈峩譁ｰ縺励∪縺吶・
+     * PUT /api/user/{uuid}
+     */
+    fun updatePermission(uuid: UUID, permission: Int, updatedBy: UUID) {
+        val path = "/api/user/$uuid"
+        val body = buildUserUpdateJson(
+            lastJoinDate = null,
+            globalIp = null,
+            accountId = null,
+            permission = permission,
+            updatedBy = updatedBy,
+        )
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path)
+                    .PUT(HttpRequest.BodyPublishers.ofString(body))
+                    .build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                if (response.statusCode() !in 200..299) {
+                    val message = "HTTP ${response.statusCode()} for PUT $path"
+                    Logger.log(LogId.E_5057, message)
+                    throw IOException("Unexpected status ${response.statusCode()} for PUT $path")
+                }
+                Logger.log(LogId.D_5057, uuid, permission)
+            }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            Logger.log(LogId.E_5057, e, e.message ?: "Interrupted while PUT $path")
+            throw RuntimeException(e)
+        }
+    }
+
     // -------------------------------------------------------
     // JSON マッピング
     // -------------------------------------------------------
@@ -212,6 +245,7 @@ class UserRepository {
         lastJoinDate: String?,
         globalIp: String?,
         accountId: UUID?,
+        permission: Int? = null,
         updatedBy: UUID,
     ): String {
         return ApiRequestUtil.buildJsonBody {
@@ -222,7 +256,11 @@ class UserRepository {
             addProperty("banIndefinite", null as Boolean?)
             addProperty("banDate", null as String?)
             addProperty("kickIp", null as Boolean?)
-            addProperty("permission", null as Number?)
+            if (permission != null) {
+                addProperty("permission", permission)
+            } else {
+                addProperty("permission", null as Number?)
+            }
             addProperty("updatedBy", updatedBy.toString())
         }
     }

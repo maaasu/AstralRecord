@@ -7,6 +7,7 @@ data class InventoryModel(
     val inventoryId: UUID,
     val accountId: UUID,
     val inventoryType: InventoryType,
+    val inventoryProfile: String,
     val slotCapacity: Int?,
     val isEnabled: Boolean,
     val metadataJson: String?,

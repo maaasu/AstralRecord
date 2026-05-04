@@ -153,12 +153,12 @@ public class CommandManager {
 
                                     List<String> suggestions = tabCompleter.onTabComplete(
                                             ctx.getSource().getSender(), null, commandName, args);
-                                    String remaining = builder.getRemaining().toLowerCase();
+                                    int currentArgumentStart = input.lastIndexOf(' ') + 1;
+                                    var argumentBuilder = builder.createOffset(currentArgumentStart);
 
                                     suggestions.stream()
-                                            .filter(s -> s.toLowerCase().startsWith(remaining))
-                                            .forEach(builder::suggest);
-                                    return builder.buildFuture();
+                                            .forEach(argumentBuilder::suggest);
+                                    return argumentBuilder.buildFuture();
                                 })
                                 .executes(executor)
                 );

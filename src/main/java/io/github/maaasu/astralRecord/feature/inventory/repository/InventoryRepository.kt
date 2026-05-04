@@ -6,6 +6,7 @@ import com.google.gson.JsonParser
 import io.github.maaasu.astralRecord.feature.inventory.model.InventoryEntryDraft
 import io.github.maaasu.astralRecord.feature.inventory.model.InventoryEntryModel
 import io.github.maaasu.astralRecord.feature.inventory.model.InventoryModel
+import io.github.maaasu.astralRecord.feature.inventory.model.InventoryProfile
 import io.github.maaasu.astralRecord.feature.inventory.model.InventoryType
 import io.github.maaasu.astralRecord.infrastructure.util.ApiRequestUtil
 import java.io.IOException
@@ -36,12 +37,14 @@ class InventoryRepository {
         inventoryType: InventoryType,
         slotCapacity: Int?,
         createdBy: UUID,
+        inventoryProfile: InventoryProfile = InventoryProfile.GAME,
         metadataJson: String? = null,
     ): InventoryModel {
         val path = "/api/inventory"
         val body = ApiRequestUtil.buildJsonBody {
             addProperty("accountId", accountId.toString())
             addProperty("inventoryType", inventoryType.code)
+            addProperty("inventoryProfile", inventoryProfile.code)
             if (slotCapacity != null) {
                 addProperty("slotCapacity", slotCapacity)
             } else {
@@ -77,6 +80,33 @@ class InventoryRepository {
         val path = "/api/inventory/$inventoryId/entries"
         val body = buildEntryJson(draft, createdBy, updatedBy = null)
         return sendWithBody(path, "POST", body, ::parseInventoryEntryModel)
+    }
+
+    fun updateEntry(
+        inventoryEntryId: UUID,
+        draft: InventoryEntryDraft,
+        updatedBy: UUID,
+    ): InventoryEntryModel {
+        val path = "/api/inventory/entries/$inventoryEntryId"
+        val body = buildEntryJson(draft, createdBy = null, updatedBy = updatedBy)
+        return sendWithBody(path, "PUT", body, ::parseInventoryEntryModel)
+    }
+
+    fun updateMetadata(
+        inventoryId: UUID,
+        metadataJson: String?,
+        updatedBy: UUID,
+    ): InventoryModel {
+        val path = "/api/inventory/$inventoryId"
+        val body = ApiRequestUtil.buildJsonBody {
+            if (metadataJson != null) {
+                addProperty("metadataJson", metadataJson)
+            } else {
+                addProperty("metadataJson", null as String?)
+            }
+            addProperty("updatedBy", updatedBy.toString())
+        }
+        return sendWithBody(path, "PUT", body, ::parseInventoryModel)
     }
 
     private fun buildEntryJson(
@@ -208,6 +238,7 @@ class InventoryRepository {
         inventoryId = UUID.fromString(get("inventoryId").asString),
         accountId = UUID.fromString(get("accountId").asString),
         inventoryType = InventoryType.fromCode(get("inventoryType").asString),
+        inventoryProfile = get("inventoryProfile").asString,
         slotCapacity = get("slotCapacity")?.takeIf { !it.isJsonNull }?.asInt,
         isEnabled = get("isEnabled").asBoolean,
         metadataJson = get("metadataJson")?.takeIf { !it.isJsonNull }?.asString,

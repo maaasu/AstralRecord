@@ -119,4 +119,9 @@ public class UserService {
             return null;
         }
     }
+
+    public UserModel setPermission(UUID uuid, int permission, UUID updatedBy) {
+        userRepository.updatePermission(uuid, permission, updatedBy);
+        return getUser(uuid);
+    }
 }

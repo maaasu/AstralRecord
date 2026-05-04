@@ -62,7 +62,7 @@ public class EventManager {
         try {
             // 有効性チェック
             if (!handler.isEnabled()) {
-                Logger.log(LogId.W_3000, handler.getHandlerName());
+                Logger.log(LogId.D_3001, handler.getHandlerName());
                 return;
             }
 
