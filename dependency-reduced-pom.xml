@@ -85,7 +85,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <outputFile>\\192.168.0.88\server\CraftyController\crafty-__saas-windows-medium-amd64__-_03629d64\servers\5bf4f70b-2c02-4a6b-b23f-8453237d2d97\plugins\${project.artifactId}-${project.version}.jar</outputFile>
+              <outputFile>E:\Project\AstralRecord\dist\${project.artifactId}-${project.version}.jar</outputFile>
               <filters>
                 <filter>
                   <artifact>*:*</artifact>
