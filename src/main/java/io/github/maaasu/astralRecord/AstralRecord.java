@@ -31,9 +31,8 @@ import io.github.maaasu.astralRecord.infrastructure.command.CommandManager;
 import io.github.maaasu.astralRecord.infrastructure.config.ConfigManager;
 import io.github.maaasu.astralRecord.infrastructure.config.ConfigProperties;
 import io.github.maaasu.astralRecord.infrastructure.api.ApiHealthChecker;
-import io.github.maaasu.astralRecord.infrastructure.database.file.FileDatabaseManager;
-import io.github.maaasu.astralRecord.infrastructure.database.file.yaml.config.YamlDbConfigUtil;
-import io.github.maaasu.astralRecord.infrastructure.database.sqlserver.SqlServerManager;
+import io.github.maaasu.astralRecord.infrastructure.file.FileDatabaseManager;
+import io.github.maaasu.astralRecord.infrastructure.database.yaml.config.YamlDbConfigUtil;
 import io.github.maaasu.astralRecord.infrastructure.logging.AuditLogger;
 import io.github.maaasu.astralRecord.infrastructure.logging.AuditLoggerRegistry;
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
@@ -114,8 +113,6 @@ public final class AstralRecord extends JavaPlugin {
 
 
             // DB 初期化
-            SqlServerManager.getInstance().initialize();
-
             // フォルダ型データベース初期化
             FileDatabaseManager.getInstance();
 

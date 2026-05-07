@@ -35,10 +35,10 @@ public class MenuView {
     public static final int CRAFT_RESULT_RAW_SLOT = 0;
     public static final int CRAFT_SHORTCUT_RAW_SLOT_START = 1;
 
-    private static final Component MAIN_TITLE = Component.text("AstralRecord Menu", NamedTextColor.DARK_AQUA);
-    private static final Component INVENTORY_TITLE = Component.text("Inventory Menu", NamedTextColor.GOLD);
-    private static final Component SHORTCUT_SLOT_TITLE = Component.text("Shortcut Settings", NamedTextColor.AQUA);
-    private static final Component SHORTCUT_ACTION_TITLE = Component.text("Shortcut Item", NamedTextColor.AQUA);
+    private static final Component MAIN_TITLE = Component.text("AstralRecord メニュー", NamedTextColor.DARK_AQUA);
+    private static final Component INVENTORY_TITLE = Component.text("インベントリメニュー", NamedTextColor.GOLD);
+    private static final Component SHORTCUT_SLOT_TITLE = Component.text("ショートカット設定", NamedTextColor.AQUA);
+    private static final Component SHORTCUT_ACTION_TITLE = Component.text("ショートカット項目", NamedTextColor.AQUA);
     private static final int[] INVENTORY_TYPE_SLOTS = {10, 12, 14, 16};
     private static final int[] SHORTCUT_SLOT_SLOTS = {10, 12, 14, 16};
     private static final int[] SHORTCUT_ACTION_SLOTS = {9, 10, 11, 13, 15, 16};
@@ -119,7 +119,7 @@ public class MenuView {
     public @NotNull ItemStack createCraftResultIcon() {
         return createItem(
             Material.NETHER_STAR,
-            Component.text("Menu", NamedTextColor.AQUA),
+            Component.text("メニュー", NamedTextColor.AQUA),
             List.of(Component.text("クリックしてメニューを開く", NamedTextColor.GRAY))
         );
     }
@@ -294,22 +294,22 @@ public class MenuView {
         fill(inventory);
         inventory.setItem(10, createItem(
             Material.PLAYER_HEAD,
-            Component.text("Status", NamedTextColor.GREEN),
+            Component.text("ステータス", NamedTextColor.GREEN),
             List.of(Component.text("ステータス画面", NamedTextColor.GRAY))
         ));
         inventory.setItem(INVENTORY_SELECTOR_SLOT, createItem(
             Material.CHEST,
-            Component.text("Inventory", NamedTextColor.YELLOW),
+            Component.text("インベントリ", NamedTextColor.YELLOW),
             List.of(Component.text("表示するインベントリを選択", NamedTextColor.GRAY))
         ));
         inventory.setItem(SHORTCUT_SETTINGS_SLOT, createItem(
             Material.REPEATER,
-            Component.text("Shortcut", NamedTextColor.AQUA),
+            Component.text("ショートカット", NamedTextColor.AQUA),
             List.of(Component.text("クラフト欄ショートカットを設定", NamedTextColor.GRAY))
         ));
         inventory.setItem(16, createItem(
             Material.BOOK,
-            Component.text("Guide", NamedTextColor.LIGHT_PURPLE),
+            Component.text("ガイド", NamedTextColor.LIGHT_PURPLE),
             List.of(Component.text("ガイド", NamedTextColor.GRAY))
         ));
         inventory.setItem(CLOSE_SLOT, closeItem());
@@ -346,7 +346,7 @@ public class MenuView {
             MenuShortcutAction action = settings.getAction(slot);
             inventory.setItem(SHORTCUT_SLOT_SLOTS[slot], createItem(
                 action.getMaterial(),
-                Component.text("Slot " + (slot + 1) + ": " + action.getDisplayNameJa(), action.getColor()),
+                Component.text("スロット " + (slot + 1) + ": " + action.getDisplayNameJa(), action.getColor()),
                 List.of(Component.text("クリックして割り当てを変更", NamedTextColor.GRAY))
             ));
         }
@@ -494,7 +494,7 @@ public class MenuView {
     private @NotNull ItemStack backItem() {
         return createItem(
             Material.ARROW,
-            Component.text("Back", NamedTextColor.WHITE),
+            Component.text("戻る", NamedTextColor.WHITE),
             List.of(Component.text("前の画面へ戻る", NamedTextColor.GRAY))
         );
     }
@@ -507,7 +507,7 @@ public class MenuView {
     private @NotNull ItemStack closeItem() {
         return createItem(
             Material.BARRIER,
-            Component.text("Close", NamedTextColor.RED),
+            Component.text("閉じる", NamedTextColor.RED),
             List.of(Component.text("閉じる", NamedTextColor.GRAY))
         );
     }

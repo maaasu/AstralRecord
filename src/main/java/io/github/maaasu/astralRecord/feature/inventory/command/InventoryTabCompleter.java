@@ -9,10 +9,20 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class InventoryTabCompleter extends AstTabCompleter {
+    /**
+     * インベントリコマンド用のタブ補完を初期化します。
+     */
     public InventoryTabCompleter() {
         super(true);
     }
 
+    /**
+     * プレイヤー実行時の補完候補を返します。
+     *
+     * @param player 実行プレイヤー
+     * @param args 現在の引数
+     * @return 補完候補一覧
+     */
     @Override
     protected List<String> getPlayerCompletions(@NotNull AstPlayer player, @NotNull String[] args) {
         if (args.length == 1) {

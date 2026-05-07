@@ -1,0 +1,30 @@
+package io.github.maaasu.astralRecord.feature.menu.view;
+
+import io.github.maaasu.astralRecord.feature.menu.model.MenuScreen;
+import org.bukkit.Bukkit;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
+import org.jetbrains.annotations.NotNull;
+
+
+record MenuInventoryHolder(MenuScreen screen, int shortcutSlotIndex) implements InventoryHolder {
+    MenuInventoryHolder(@NotNull MenuScreen screen) {
+        this(screen, -1);
+    }
+
+    MenuInventoryHolder(@NotNull MenuScreen screen, int shortcutSlotIndex) {
+        this.screen = screen;
+        this.shortcutSlotIndex = shortcutSlotIndex;
+    }
+
+    @Override
+    @NotNull
+    public MenuScreen screen() {
+        return screen;
+    }
+
+    @Override
+    public @NotNull Inventory getInventory() {
+        return Bukkit.createInventory(this, MenuView.SIZE);
+    }
+}

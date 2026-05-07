@@ -6,6 +6,7 @@ import org.bukkit.inventory.PlayerInventory
 
 enum class EquipmentType {
     MAIN_HAND,
+    OFF_HAND,
     HEAD,
     CHEST,
     LEGS,
@@ -16,6 +17,7 @@ enum class EquipmentType {
     fun applyTo(inventory: PlayerInventory, itemStack: ItemStack?) {
         when (this) {
             MAIN_HAND -> inventory.setItemInMainHand(itemStack)
+            OFF_HAND -> inventory.setItemInOffHand(itemStack)
             HEAD -> inventory.helmet = itemStack
             CHEST -> inventory.chestplate = itemStack
             LEGS -> inventory.leggings = itemStack
@@ -33,6 +35,24 @@ enum class EquipmentType {
                 ItemEquipmentSlot.CHEST -> CHEST
                 ItemEquipmentSlot.LEGS -> LEGS
                 ItemEquipmentSlot.FEET -> FEET
+                else -> UNSUPPORTED
+            }
+
+        @JvmStatic
+        fun fromEquipSlotIndex(slotIndex: Int): EquipmentType =
+            when (slotIndex) {
+                1 -> MAIN_HAND
+                2 -> HEAD
+                3 -> CHEST
+                4 -> LEGS
+                5 -> FEET
+                else -> UNSUPPORTED
+            }
+
+        @JvmStatic
+        fun fromAccessorySlotIndex(slotIndex: Int): EquipmentType =
+            when (slotIndex) {
+                1 -> OFF_HAND
                 else -> UNSUPPORTED
             }
     }
