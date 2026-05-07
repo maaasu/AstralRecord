@@ -375,6 +375,13 @@ public enum LogId {
     E_5070(5070),
     // endregion
 
+    // region /feature/player/event/PlayerSneakEventHandler.java
+    /**
+     * プレイヤーのしゃがみイベント処理に失敗しました: %s
+     */
+    E_5170(5170),
+    // endregion
+
     // region /feature/account/service/AccountService.java
     /**
      * アカウントを作成しました: %s (slot=%d, user=%s)

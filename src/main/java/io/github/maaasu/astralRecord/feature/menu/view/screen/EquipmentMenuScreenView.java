@@ -51,72 +51,17 @@ public final class EquipmentMenuScreenView extends BaseMenuScreenView {
     ) {
         fill(inventory);
         PlayerInventory playerInventory = player.getInventory();
-        inventory.setItem(EQUIPMENT_HEAD_SLOT, itemOrPlaceholder(
-            playerInventory.getHelmet(),
-            Material.MINECART,
-            "頭",
-            "頭防具スロット"
-        ));
-        inventory.setItem(EQUIPMENT_CHEST_SLOT, itemOrPlaceholder(
-            playerInventory.getChestplate(),
-            Material.MINECART,
-            "胴",
-            "胴防具スロット"
-        ));
-        inventory.setItem(EQUIPMENT_LEGS_SLOT, itemOrPlaceholder(
-            playerInventory.getLeggings(),
-            Material.MINECART,
-            "脚",
-            "脚防具スロット"
-        ));
-        inventory.setItem(EQUIPMENT_FEET_SLOT, itemOrPlaceholder(
-            playerInventory.getBoots(),
-            Material.MINECART,
-            "足",
-            "足防具スロット"
-        ));
-        inventory.setItem(EQUIPMENT_OFF_HAND_SLOT, itemOrPlaceholder(
-            playerInventory.getItemInOffHand(),
-            Material.MINECART,
-            "オフハンド",
-            "盾またはアクセサリ"
-        ));
-        inventory.setItem(EQUIPMENT_ACCESSORY_2_SLOT, itemOrPlaceholder(
-            accessoryAt(accessories, 2),
-            Material.MINECART,
-            "首飾り",
-            "アクセサリスロット"
-        ));
-        inventory.setItem(EQUIPMENT_ACCESSORY_3_SLOT, itemOrPlaceholder(
-            accessoryAt(accessories, 3),
-            Material.MINECART,
-            "指輪",
-            "アクセサリスロット"
-        ));
-        inventory.setItem(EQUIPMENT_ACCESSORY_4_SLOT, itemOrPlaceholder(
-            accessoryAt(accessories, 4),
-            Material.MINECART,
-            "耳飾り",
-            "アクセサリスロット"
-        ));
-        inventory.setItem(EQUIPMENT_ACCESSORY_5_SLOT, itemOrPlaceholder(
-            accessoryAt(accessories, 5),
-            Material.MINECART,
-            "腕輪",
-            "アクセサリスロット"
-        ));
-        inventory.setItem(EQUIPMENT_ACCESSORY_6_SLOT, itemOrPlaceholder(
-            accessoryAt(accessories, 6),
-            Material.MINECART,
-            "ベルト",
-            "アクセサリスロット"
-        ));
-        inventory.setItem(EQUIPMENT_ACCESSORY_7_SLOT, itemOrPlaceholder(
-            accessoryAt(accessories, 7),
-            Material.MINECART,
-            "護符",
-            "アクセサリスロット"
-        ));
+        inventory.setItem(EQUIPMENT_HEAD_SLOT, itemOrPlaceholderForSlot(playerInventory.getHelmet(), EQUIPMENT_HEAD_SLOT));
+        inventory.setItem(EQUIPMENT_CHEST_SLOT, itemOrPlaceholderForSlot(playerInventory.getChestplate(), EQUIPMENT_CHEST_SLOT));
+        inventory.setItem(EQUIPMENT_LEGS_SLOT, itemOrPlaceholderForSlot(playerInventory.getLeggings(), EQUIPMENT_LEGS_SLOT));
+        inventory.setItem(EQUIPMENT_FEET_SLOT, itemOrPlaceholderForSlot(playerInventory.getBoots(), EQUIPMENT_FEET_SLOT));
+        inventory.setItem(EQUIPMENT_OFF_HAND_SLOT, itemOrPlaceholderForSlot(playerInventory.getItemInOffHand(), EQUIPMENT_OFF_HAND_SLOT));
+        inventory.setItem(EQUIPMENT_ACCESSORY_2_SLOT, itemOrPlaceholderForSlot(accessoryAt(accessories, 2), EQUIPMENT_ACCESSORY_2_SLOT));
+        inventory.setItem(EQUIPMENT_ACCESSORY_3_SLOT, itemOrPlaceholderForSlot(accessoryAt(accessories, 3), EQUIPMENT_ACCESSORY_3_SLOT));
+        inventory.setItem(EQUIPMENT_ACCESSORY_4_SLOT, itemOrPlaceholderForSlot(accessoryAt(accessories, 4), EQUIPMENT_ACCESSORY_4_SLOT));
+        inventory.setItem(EQUIPMENT_ACCESSORY_5_SLOT, itemOrPlaceholderForSlot(accessoryAt(accessories, 5), EQUIPMENT_ACCESSORY_5_SLOT));
+        inventory.setItem(EQUIPMENT_ACCESSORY_6_SLOT, itemOrPlaceholderForSlot(accessoryAt(accessories, 6), EQUIPMENT_ACCESSORY_6_SLOT));
+        inventory.setItem(EQUIPMENT_ACCESSORY_7_SLOT, itemOrPlaceholderForSlot(accessoryAt(accessories, 7), EQUIPMENT_ACCESSORY_7_SLOT));
         inventory.setItem(BACK_SLOT, backItem());
         inventory.setItem(CLOSE_SLOT, closeItem());
     }
@@ -193,21 +138,44 @@ public final class EquipmentMenuScreenView extends BaseMenuScreenView {
         return meta != null && meta.getPersistentDataContainer().has(equipmentPlaceholderKey, PersistentDataType.INTEGER);
     }
 
+    /**
+     * 指定スロットの装備種別に対応するプレースホルダー ItemStack を生成します。
+     *
+     * @param slot 装備 GUI スロット番号
+     * @return プレースホルダー（管理外スロットなら null）
+     */
+    public @Nullable ItemStack createPlaceholderForSlot(int slot) {
+        return switch (slot) {
+            case EQUIPMENT_HEAD_SLOT -> placeholder("頭", "頭防具スロット");
+            case EQUIPMENT_CHEST_SLOT -> placeholder("胴", "胴防具スロット");
+            case EQUIPMENT_LEGS_SLOT -> placeholder("脚", "脚防具スロット");
+            case EQUIPMENT_FEET_SLOT -> placeholder("足", "足防具スロット");
+            case EQUIPMENT_OFF_HAND_SLOT -> placeholder("オフハンド", "盾またはアクセサリ");
+            case EQUIPMENT_ACCESSORY_2_SLOT -> placeholder("首飾り", "アクセサリスロット");
+            case EQUIPMENT_ACCESSORY_3_SLOT -> placeholder("指輪", "アクセサリスロット");
+            case EQUIPMENT_ACCESSORY_4_SLOT -> placeholder("耳飾り", "アクセサリスロット");
+            case EQUIPMENT_ACCESSORY_5_SLOT -> placeholder("腕輪", "アクセサリスロット");
+            case EQUIPMENT_ACCESSORY_6_SLOT -> placeholder("ベルト", "アクセサリスロット");
+            case EQUIPMENT_ACCESSORY_7_SLOT -> placeholder("護符", "アクセサリスロット");
+            default -> null;
+        };
+    }
+
     private @Nullable ItemStack accessoryAt(@NotNull ItemStack[] accessories, int slotIndex) {
         return accessories.length > slotIndex ? accessories[slotIndex] : null;
     }
 
-    private @NotNull ItemStack itemOrPlaceholder(
-        @Nullable ItemStack itemStack,
-        @NotNull Material placeholderMaterial,
-        @NotNull String title,
-        @NotNull String description
-    ) {
+    private @NotNull ItemStack itemOrPlaceholderForSlot(@Nullable ItemStack itemStack, int slot) {
         if (itemStack != null && itemStack.getType() != Material.AIR) {
             return itemStack;
         }
+        ItemStack placeholder = createPlaceholderForSlot(slot);
+        return placeholder != null ? placeholder : new ItemStack(Material.AIR);
+    }
+
+    private @NotNull ItemStack placeholder(@NotNull String title, @NotNull String description) {
         ItemStack placeholder = createItem(
-            placeholderMaterial,
+            Material.MINECART,
             Component.text(title, NamedTextColor.DARK_GRAY),
             List.of(Component.text(description, NamedTextColor.GRAY))
         );

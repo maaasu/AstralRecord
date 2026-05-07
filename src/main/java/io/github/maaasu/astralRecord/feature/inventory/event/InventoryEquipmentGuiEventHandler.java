@@ -100,8 +100,28 @@ public class InventoryEquipmentGuiEventHandler extends AbstractEventHandler {
         }
 
         ItemStack current = menuView.getEquipmentGuiItem(topInventory, event.getRawSlot());
-        topInventory.setItem(event.getRawSlot(), cursor.getType() == Material.AIR ? null : cursor.clone());
-        player.setItemOnCursor(current == null ? new ItemStack(Material.AIR) : current);
+        boolean hasCursor = cursor != null && cursor.getType() != Material.AIR;
+        boolean hasCurrent = current != null;
+
+        if (!hasCursor && !hasCurrent) {
+            GuiSound.DENY.play(player);
+            return;
+        }
+
+        if (!hasCursor) {
+            if (!player.getInventory().addItem(current.clone()).isEmpty()) {
+                GuiSound.DENY.play(player);
+                return;
+            }
+            ItemStack placeholder = menuView.getEquipmentSlotPlaceholder(event.getRawSlot());
+            topInventory.setItem(event.getRawSlot(), placeholder);
+            player.updateInventory();
+            GuiSound.SELECT.play(player);
+            return;
+        }
+
+        topInventory.setItem(event.getRawSlot(), cursor.clone());
+        player.setItemOnCursor(hasCurrent ? current : new ItemStack(Material.AIR));
         GuiSound.SELECT.play(player);
     }
 
@@ -262,7 +282,7 @@ public class InventoryEquipmentGuiEventHandler extends AbstractEventHandler {
 
         if (!hasCursor) {
             inventory.setItem(slot, new ItemStack(Material.AIR));
-            event.setCursor(current == null ? new ItemStack(Material.AIR) : current.clone());
+            event.getView().setCursor(current == null ? new ItemStack(Material.AIR) : current.clone());
             inventoryService.saveEquipSlotSnapshot(astPlayer);
             inventoryService.saveAccessorySlotSnapshot(astPlayer);
             inventoryService.syncCurrentEquipmentState(astPlayer);
@@ -275,7 +295,7 @@ public class InventoryEquipmentGuiEventHandler extends AbstractEventHandler {
         }
 
         inventory.setItem(slot, cursor.clone());
-        event.setCursor(hasCurrent ? current.clone() : new ItemStack(Material.AIR));
+        event.getView().setCursor(hasCurrent ? current.clone() : new ItemStack(Material.AIR));
         inventoryService.saveEquipSlotSnapshot(astPlayer);
         inventoryService.saveAccessorySlotSnapshot(astPlayer);
         inventoryService.syncCurrentEquipmentState(astPlayer);

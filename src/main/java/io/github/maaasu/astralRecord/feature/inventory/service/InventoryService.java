@@ -952,22 +952,19 @@ public class InventoryService {
         int accessorySlot,
         @Nullable ItemStack itemStack
     ) {
+        if (!AccessorySlotLayout.isManagedSlot(accessorySlot)) {
+            return;
+        }
+        int loadoutSlotIndex = toAccessoryLoadoutSlotIndex(accessorySlot);
+        if (loadoutSlotIndex < 0) {
+            return;
+        }
         UUID accountId = astPlayer.getAccount().getUuid();
-        InventoryModel inventory = ensureInventory(
-            accountId,
-            InventoryType.ACCESSORY_SLOT,
-            AccessorySlotLayout.CAPACITY,
-            accountId
-        );
-        ItemStack[] snapshot = null;
-        if (inventory.getMetadataJson() != null && !inventory.getMetadataJson().isBlank()) {
-            snapshot = snapshotCodec.decode(inventory.getMetadataJson());
+        EquipmentLoadoutModel loadout = ensureActiveEquipmentLoadout(accountId);
+        if (loadout == null) {
+            return;
         }
-        if (snapshot == null || snapshot.length <= AccessorySlotLayout.SLOT_MAX) {
-            snapshot = new ItemStack[AccessorySlotLayout.SLOT_MAX + 1];
-        }
-        snapshot[accessorySlot] = itemOrAir(itemStack);
-        inventoryRepository.updateMetadata(inventory.getInventoryId(), snapshotCodec.encode(snapshot), accountId);
+        syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, loadoutSlotIndex, itemStack, accountId);
     }
 
     public void syncCurrentEquipmentState(@NotNull AstPlayer astPlayer) {
@@ -1009,24 +1006,16 @@ public class InventoryService {
             return;
         }
 
-        var accountId = astPlayer.getAccount().getUuid();
         var bukkitPlayer = astPlayer.getBukkit();
-
-        inventoryRepository.findByAccountId(accountId).stream()
-            .filter(this::isDefaultProfile)
-            .filter(inv -> inv.getInventoryType() == InventoryType.ACCESSORY_SLOT)
-            .findFirst()
-            .ifPresent(inventory -> {
-                var entries = inventoryRepository.findEntries(inventory.getInventoryId());
-                if (inventory.getMetadataJson() != null && !inventory.getMetadataJson().isBlank()) {
-                    ItemStack[] snapshot = snapshotCodec.decode(inventory.getMetadataJson());
-                    if (snapshot != null) {
-                        AccessorySlotLayout.applySnapshot(bukkitPlayer, snapshot);
-                    }
-                } else if (!entries.isEmpty()) {
-                    AccessorySlotLayout.applyEntriesToPlayer(bukkitPlayer, entries, itemStackResolver::resolve);
-                }
-            });
+        ItemStack[] snapshot = new ItemStack[AccessorySlotLayout.SLOT_MAX + 1];
+        snapshot[AccessorySlotLayout.SLOT_OFF_HAND] = itemOrAir(getAccessorySnapshotItem(astPlayer, AccessorySlotLayout.SLOT_OFF_HAND));
+        snapshot[AccessorySlotLayout.SLOT_NECKLACE] = itemOrAir(getAccessorySnapshotItem(astPlayer, AccessorySlotLayout.SLOT_NECKLACE));
+        snapshot[AccessorySlotLayout.SLOT_RING] = itemOrAir(getAccessorySnapshotItem(astPlayer, AccessorySlotLayout.SLOT_RING));
+        snapshot[AccessorySlotLayout.SLOT_EARRING] = itemOrAir(getAccessorySnapshotItem(astPlayer, AccessorySlotLayout.SLOT_EARRING));
+        snapshot[AccessorySlotLayout.SLOT_BRACELET] = itemOrAir(getAccessorySnapshotItem(astPlayer, AccessorySlotLayout.SLOT_BRACELET));
+        snapshot[AccessorySlotLayout.SLOT_BELT] = itemOrAir(getAccessorySnapshotItem(astPlayer, AccessorySlotLayout.SLOT_BELT));
+        snapshot[AccessorySlotLayout.SLOT_CHARM] = itemOrAir(getAccessorySnapshotItem(astPlayer, AccessorySlotLayout.SLOT_CHARM));
+        AccessorySlotLayout.applySnapshot(bukkitPlayer, snapshot);
 
         bukkitPlayer.updateInventory();
     }
@@ -1037,16 +1026,7 @@ public class InventoryService {
      * @param astPlayer 保存対象プレイヤー
      */
     public void saveAccessorySlotSnapshot(@NotNull AstPlayer astPlayer) {
-        var accountId = astPlayer.getAccount().getUuid();
-        var inventory = ensureInventory(
-            accountId,
-            InventoryType.ACCESSORY_SLOT,
-            AccessorySlotLayout.CAPACITY,
-            accountId
-        );
-        var snapshot = AccessorySlotLayout.createSnapshot(astPlayer.getBukkit());
-        var metadataJson = snapshotCodec.encode(snapshot);
-        inventoryRepository.updateMetadata(inventory.getInventoryId(), metadataJson, accountId);
+        syncCurrentEquipmentState(astPlayer);
     }
 
     /**
@@ -1091,17 +1071,6 @@ public class InventoryService {
         equipSnapshot[EquipSlotLayout.SLOT_FEET] = itemOrAir(feet);
         var equipInventory = ensureInventory(accountId, InventoryType.EQUIP_SLOT, EquipSlotLayout.SLOT_MAX, accountId);
         inventoryRepository.updateMetadata(equipInventory.getInventoryId(), snapshotCodec.encode(equipSnapshot), accountId);
-
-        ItemStack[] accessorySnapshot = new ItemStack[AccessorySlotLayout.SLOT_MAX + 1];
-        accessorySnapshot[AccessorySlotLayout.SLOT_OFF_HAND] = itemOrAir(offHand);
-        accessorySnapshot[AccessorySlotLayout.SLOT_NECKLACE] = itemOrAir(accessory2);
-        accessorySnapshot[AccessorySlotLayout.SLOT_RING] = itemOrAir(accessory3);
-        accessorySnapshot[AccessorySlotLayout.SLOT_EARRING] = itemOrAir(accessory4);
-        accessorySnapshot[AccessorySlotLayout.SLOT_BRACELET] = itemOrAir(accessory5);
-        accessorySnapshot[AccessorySlotLayout.SLOT_BELT] = itemOrAir(accessory6);
-        accessorySnapshot[AccessorySlotLayout.SLOT_CHARM] = itemOrAir(accessory7);
-        var accessoryInventory = ensureInventory(accountId, InventoryType.ACCESSORY_SLOT, AccessorySlotLayout.CAPACITY, accountId);
-        inventoryRepository.updateMetadata(accessoryInventory.getInventoryId(), snapshotCodec.encode(accessorySnapshot), accountId);
 
         syncActiveEquipmentLoadout(
             accountId,
@@ -1321,17 +1290,23 @@ public class InventoryService {
         if (!AccessorySlotLayout.isManagedSlot(slotIndex)) {
             return null;
         }
-        var accountId = astPlayer.getAccount().getUuid();
-        return inventoryRepository.findByAccountId(accountId).stream()
-            .filter(this::isDefaultProfile)
-            .filter(inv -> inv.getInventoryType() == InventoryType.ACCESSORY_SLOT)
-            .findFirst()
-            .map(InventoryModel::getMetadataJson)
-            .filter(metadata -> !metadata.isBlank())
-            .map(snapshotCodec::decode)
-            .filter(snapshot -> snapshot.length > slotIndex)
-            .map(snapshot -> snapshot[slotIndex])
+        int loadoutSlotIndex = toAccessoryLoadoutSlotIndex(slotIndex);
+        if (loadoutSlotIndex < 0) {
+            return null;
+        }
+        EquipmentLoadoutModel loadout = getActiveEquipmentLoadout(astPlayer.getAccount().getUuid());
+        if (loadout == null || loadout.getSlots().isEmpty()) {
+            return null;
+        }
+        return loadout.getSlots().stream()
+            .filter(slot -> SLOT_TYPE_ACCESSORY.equals(slot.getSlotType()))
+            .filter(slot -> slot.getSlotIndex() == loadoutSlotIndex)
+            .filter(slot -> slot.getEquipmentInstanceId() != null)
+            .map(this::toInventoryEntry)
+            .map(itemStackResolver::resolve)
+            .filter(item -> item != null)
             .filter(item -> item.getType() != Material.AIR)
+            .findFirst()
             .orElse(null);
     }
 
@@ -1354,50 +1329,41 @@ public class InventoryService {
         }
 
         var accountId = astPlayer.getAccount().getUuid();
-        var accessoryInventory = ensureInventory(
-            accountId,
-            InventoryType.ACCESSORY_SLOT,
-            AccessorySlotLayout.CAPACITY,
-            accountId
-        );
-
-        var existingEntries = getEntries(accessoryInventory.getInventoryId());
-        existingEntries.stream()
-            .filter(e -> e.getSlotIndex() != null && e.getSlotIndex() == slotIndex && !e.isDeleted())
-            .findFirst()
-            .ifPresent(existing -> inventoryRepository.updateEntry(
-                existing.getInventoryEntryId(),
-                new InventoryEntryDraft(
-                    existing.getSlotIndex(),
-                    entry.getItemCategory(),
-                    entry.getItemId(),
-                    entry.getInstanceType(),
-                    entry.getInstanceId(),
-                    entry.getQuantity(),
-                    entry.getMetadataJson()
-                ),
-                accountId
-            ));
-
-        if (existingEntries.stream().noneMatch(e -> e.getSlotIndex() != null && e.getSlotIndex() == slotIndex && !e.isDeleted())) {
-            addEntry(
-                accessoryInventory.getInventoryId(),
-                new InventoryEntryDraft(
-                    slotIndex,
-                    entry.getItemCategory(),
-                    entry.getItemId(),
-                    entry.getInstanceType(),
-                    entry.getInstanceId(),
-                    entry.getQuantity(),
-                    entry.getMetadataJson()
-                ),
-                accountId
-            );
+        int loadoutSlotIndex = toAccessoryLoadoutSlotIndex(slotIndex);
+        EquipmentLoadoutModel loadout = ensureActiveEquipmentLoadout(accountId);
+        if (loadout != null && loadoutSlotIndex >= 0) {
+            ItemStack itemStack = itemStackResolver.resolve(entry);
+            syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, loadoutSlotIndex, itemStack, accountId);
         }
 
         EquipmentType.fromAccessorySlotIndex(slotIndex)
             .applyTo(astPlayer.getBukkit().getInventory(), itemStackResolver.resolve(entry));
         astPlayer.getBukkit().updateInventory();
+    }
+
+    private int toAccessoryLoadoutSlotIndex(int accessorySlot) {
+        if (accessorySlot == AccessorySlotLayout.SLOT_OFF_HAND) {
+            return 0;
+        }
+        if (accessorySlot == AccessorySlotLayout.SLOT_NECKLACE) {
+            return 1;
+        }
+        if (accessorySlot == AccessorySlotLayout.SLOT_RING) {
+            return 2;
+        }
+        if (accessorySlot == AccessorySlotLayout.SLOT_EARRING) {
+            return 3;
+        }
+        if (accessorySlot == AccessorySlotLayout.SLOT_BRACELET) {
+            return 4;
+        }
+        if (accessorySlot == AccessorySlotLayout.SLOT_BELT) {
+            return 5;
+        }
+        if (accessorySlot == AccessorySlotLayout.SLOT_CHARM) {
+            return 6;
+        }
+        return -1;
     }
 
     // ---------------------------------------------------------------

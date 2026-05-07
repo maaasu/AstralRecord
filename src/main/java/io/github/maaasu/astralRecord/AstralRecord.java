@@ -22,11 +22,14 @@ import io.github.maaasu.astralRecord.feature.mob.repository.MobRepository;
 import io.github.maaasu.astralRecord.feature.mob.service.MobService;
 import io.github.maaasu.astralRecord.feature.player.event.PlayerJoinEventHandler;
 import io.github.maaasu.astralRecord.feature.player.event.PlayerModeEventHandler;
+import io.github.maaasu.astralRecord.feature.player.event.PlayerSneakEventHandler;
 import io.github.maaasu.astralRecord.feature.player.save.PlayerSaveCoordinator;
+import io.github.maaasu.astralRecord.feature.player.service.DodgeService;
 import io.github.maaasu.astralRecord.feature.player.service.PlayerService;
 import io.github.maaasu.astralRecord.feature.resourcepack.event.ResourcePackJoinEventHandler;
 import io.github.maaasu.astralRecord.feature.resourcepack.event.ResourcePackStatusEventHandler;
 import io.github.maaasu.astralRecord.feature.resourcepack.service.ResourcePackService;
+import io.github.maaasu.astralRecord.feature.status.service.StatusRegenTask;
 import io.github.maaasu.astralRecord.feature.status.service.StatusService;
 import io.github.maaasu.astralRecord.feature.user.event.UserLoginEventHandler;
 import io.github.maaasu.astralRecord.feature.user.repository.UserRepository;
@@ -57,6 +60,8 @@ public final class AstralRecord extends JavaPlugin {
     private PlayerService playerService;
     private InventoryService inventoryService;
     private StatusService statusService;
+    private StatusRegenTask statusRegenTask;
+    private DodgeService dodgeService;
     private PlayerHudService playerHudService;
     private ResourcePackService resourcePackService;
     private MenuView menuView;
@@ -101,6 +106,9 @@ public final class AstralRecord extends JavaPlugin {
     public void onDisable() {
         if (playerHudService != null) {
             playerHudService.stop();
+        }
+        if (statusRegenTask != null) {
+            statusRegenTask.stop();
         }
         if (mobService != null) {
             mobService.destroyAll();
@@ -160,7 +168,11 @@ public final class AstralRecord extends JavaPlugin {
 
         // status
         statusService = new StatusService();
+        statusRegenTask = new StatusRegenTask(statusService);
         playerHudService = new PlayerHudService(statusService);
+
+        // dodge
+        dodgeService = new DodgeService(this, statusService);
 
         var playerSaveCoordinator = new PlayerSaveCoordinator(
             java.util.List.of(new InventorySaveTask(inventoryService))
@@ -235,7 +247,12 @@ public final class AstralRecord extends JavaPlugin {
             new PlayerModeEventHandler(),
             getServer().getPluginManager()
         );
+        eventManager.registerHandler(
+            new PlayerSneakEventHandler(dodgeService),
+            getServer().getPluginManager()
+        );
         playerHudService.start(this);
+        statusRegenTask.start(this);
     }
     /**
      * AstralSaga のインスタンスを取得します。

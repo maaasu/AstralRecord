@@ -1,12 +1,13 @@
 package io.github.maaasu.astralRecord.feature.menu.view;
 
+import io.github.maaasu.astralRecord.feature.inventory.model.InventoryType;
 import io.github.maaasu.astralRecord.feature.menu.model.MenuShortcutAction;
 import io.github.maaasu.astralRecord.feature.menu.model.MenuShortcutSettings;
-import io.github.maaasu.astralRecord.feature.menu.view.screen.BaseMenuScreenView;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.Inventory;
@@ -42,7 +43,19 @@ final class CraftShortcutView {
         return itemStack;
     }
 
-    void renderCraftShortcuts(@NotNull Player player, @NotNull MenuShortcutSettings settings) {
+    /**
+     * クラフト枠ショートカットを描画します。同等の表示内容なら更新を抑止し、
+     * 表示中のインベントリ種別と一致するショートカットには発光を付与します。
+     *
+     * @param player          描画対象プレイヤー
+     * @param settings        ショートカット設定
+     * @param selectedType    現在表示中のインベントリ種別（指定なしなら null）
+     */
+    void renderCraftShortcuts(
+        @NotNull Player player,
+        @NotNull MenuShortcutSettings settings,
+        @Nullable InventoryType selectedType
+    ) {
         if (!(player.getOpenInventory().getTopInventory() instanceof CraftingInventory inventory)) {
             return;
         }
@@ -50,12 +63,28 @@ final class CraftShortcutView {
             return;
         }
 
-        ItemStack[] matrix = new ItemStack[MenuShortcutSettings.SLOT_COUNT];
+        ItemStack[] currentMatrix = inventory.getMatrix();
+        ItemStack[] newMatrix = new ItemStack[MenuShortcutSettings.SLOT_COUNT];
+        boolean matrixChanged = false;
         for (int slot = 0; slot < MenuShortcutSettings.SLOT_COUNT; slot++) {
-            matrix[slot] = createCraftShortcutIcon(slot, settings.getAction(slot));
+            MenuShortcutAction action = settings.getAction(slot);
+            boolean selected = action.getInventoryType() != null && action.getInventoryType() == selectedType;
+            newMatrix[slot] = createCraftShortcutIcon(slot, action, selected);
+            ItemStack existing = currentMatrix != null && slot < currentMatrix.length ? currentMatrix[slot] : null;
+            if (!isSameDisplayItem(existing, newMatrix[slot])) {
+                matrixChanged = true;
+            }
         }
-        inventory.setMatrix(matrix);
-        inventory.setResult(createCraftResultIcon());
+
+        ItemStack newResult = createCraftResultIcon();
+        boolean resultChanged = !isSameDisplayItem(inventory.getResult(), newResult);
+
+        if (!matrixChanged && !resultChanged) {
+            return;
+        }
+
+        inventory.setMatrix(newMatrix);
+        inventory.setResult(newResult);
         player.updateInventory();
     }
 
@@ -101,13 +130,20 @@ final class CraftShortcutView {
         return meta != null && meta.getPersistentDataContainer().has(craftShortcutKey, PersistentDataType.INTEGER);
     }
 
-    private @NotNull ItemStack createCraftShortcutIcon(int shortcutSlotIndex, @NotNull MenuShortcutAction action) {
+    private @NotNull ItemStack createCraftShortcutIcon(
+        int shortcutSlotIndex,
+        @NotNull MenuShortcutAction action,
+        boolean selected
+    ) {
         ItemStack itemStack = createItem(
             action.getMaterial(),
             Component.text(action.getDisplayNameJa(), action.getColor()),
             List.of(Component.text("クリックして実行", NamedTextColor.GRAY))
         );
         markCraftShortcutIcon(itemStack, shortcutSlotIndex, action);
+        if (selected) {
+            applySelectionGlow(itemStack);
+        }
         return itemStack;
     }
 
@@ -120,6 +156,15 @@ final class CraftShortcutView {
         if (meta != null) {
             meta.getPersistentDataContainer().set(craftShortcutKey, PersistentDataType.INTEGER, shortcutSlotIndex);
             meta.getPersistentDataContainer().set(craftActionKey, PersistentDataType.STRING, action.getCode());
+            itemStack.setItemMeta(meta);
+        }
+    }
+
+    private void applySelectionGlow(@NotNull ItemStack itemStack) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
             itemStack.setItemMeta(meta);
         }
     }
@@ -148,6 +193,15 @@ final class CraftShortcutView {
                 inventory.setItem(slot, new ItemStack(Material.AIR));
             }
         }
+    }
+
+    private boolean isSameDisplayItem(@Nullable ItemStack current, @Nullable ItemStack next) {
+        boolean currentEmpty = current == null || current.getType() == Material.AIR;
+        boolean nextEmpty = next == null || next.getType() == Material.AIR;
+        if (currentEmpty || nextEmpty) {
+            return currentEmpty == nextEmpty;
+        }
+        return current.getAmount() == next.getAmount() && current.isSimilar(next);
     }
 
     private @NotNull ItemStack createItem(

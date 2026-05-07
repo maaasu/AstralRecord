@@ -441,7 +441,15 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
         }
         craftRenderSuppressed.add(playerId);
         try {
-            menuView.renderCraftShortcuts(player, shortcutRepository.findByAccountId(astPlayer.getAccount().getUuid()));
+            UUID accountId = astPlayer.getAccount().getUuid();
+            InventoryType displayedType = astPlayer.getAccount().getMode().shouldReflectInventoryToGui()
+                ? inventoryService.getDisplayedInventoryType(accountId)
+                : null;
+            menuView.renderCraftShortcuts(
+                player,
+                shortcutRepository.findByAccountId(accountId),
+                displayedType
+            );
         } finally {
             craftRenderSuppressed.remove(playerId);
         }

@@ -134,7 +134,22 @@ public class MenuView {
     }
 
     public void renderCraftShortcuts(@NotNull Player player, @NotNull MenuShortcutSettings settings) {
-        craftShortcutView.renderCraftShortcuts(player, settings);
+        craftShortcutView.renderCraftShortcuts(player, settings, null);
+    }
+
+    /**
+     * 表示中インベントリ種別を強調しつつクラフト枠ショートカットを再描画します。
+     *
+     * @param player        描画対象プレイヤー
+     * @param settings      ショートカット設定
+     * @param selectedType  現在表示中のインベントリ種別（強調しないなら null）
+     */
+    public void renderCraftShortcuts(
+        @NotNull Player player,
+        @NotNull MenuShortcutSettings settings,
+        @Nullable InventoryType selectedType
+    ) {
+        craftShortcutView.renderCraftShortcuts(player, settings, selectedType);
     }
 
     public void clearCraftShortcuts(@NotNull Player player) {
@@ -185,6 +200,16 @@ public class MenuView {
 
     public @Nullable ItemStack getEquipmentGuiItem(@NotNull Inventory inventory, int slot) {
         return equipmentMenuScreenView.getEquipmentGuiItem(inventory, slot);
+    }
+
+    /**
+     * 装備 GUI の指定スロット用プレースホルダーを返します。
+     *
+     * @param slot 装備 GUI スロット番号
+     * @return プレースホルダー（管理外スロットなら null）
+     */
+    public @Nullable ItemStack getEquipmentSlotPlaceholder(int slot) {
+        return equipmentMenuScreenView.createPlaceholderForSlot(slot);
     }
 
     public int getSlotForEquipmentType(@NotNull EquipmentType equipmentType) {

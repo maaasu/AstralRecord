@@ -34,6 +34,24 @@ data class AstPlayer(
     var statusSnapshot: StatusSnapshot = StatusSnapshot.empty()
     val activeBuffs: MutableList<ActiveBuff> = mutableListOf()
 
+    /**
+     * しゃがみ開始時刻（System.currentTimeMillis ベース）。
+     * しゃがみ開始 → 短時間以内に解除でドッジ判定に使用します。
+     */
+    var sneakStartedAtMs: Long = 0L
+
+    /**
+     * 次にドッジを発動できる時刻（System.currentTimeMillis ベース）。
+     * クールダウン中はドッジを発動できません。
+     */
+    var dodgeCooldownEndAtMs: Long = 0L
+
+    /**
+     * ドッジ実行中フラグ。
+     * 攻撃処理側でジャスト回避判定に使用するため、常に最新の状態へ同期する必要があります。
+     */
+    var isDodging: Boolean = false
+
     init {
         applyPermission(user)
         applyAccountMode(account)
