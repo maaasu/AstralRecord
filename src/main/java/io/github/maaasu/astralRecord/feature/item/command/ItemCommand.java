@@ -1,6 +1,7 @@
 package io.github.maaasu.astralRecord.feature.item.command;
 
 import io.github.maaasu.astralRecord.AstralRecord;
+import io.github.maaasu.astralRecord.feature.inventory.model.InventoryType;
 import io.github.maaasu.astralRecord.feature.inventory.service.InventoryService;
 import io.github.maaasu.astralRecord.feature.item.model.ItemModel;
 import io.github.maaasu.astralRecord.feature.item.service.ItemService;
@@ -84,7 +85,8 @@ public class ItemCommand extends AstCommand {
             return;
         }
 
-        inventoryService.applyInventoriesToGui(player);
+        InventoryType inventoryType = inventoryService.resolveInventoryType(model);
+        inventoryService.applyInventoryToGui(player, inventoryType);
         player.sendMessage(PlayerMsgId.P_5240, model.getName(), granted);
     }
 

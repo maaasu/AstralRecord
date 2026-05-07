@@ -101,7 +101,7 @@ final class InventorySnapshotCodec {
      * @param encoded Base64 化された旧形式の Bukkit インベントリ内容
      * @return 復元した ItemStack 配列。失敗時は null
      */
-    @SuppressWarnings({"deprecation", "removal"})
+    @SuppressWarnings({"deprecation"})
     private @Nullable ItemStack[] decodeLegacyContents(@NotNull String encoded) {
         try (ByteArrayInputStream in = new ByteArrayInputStream(Base64.getDecoder().decode(encoded));
              BukkitObjectInputStream dataIn = new BukkitObjectInputStream(in)) {

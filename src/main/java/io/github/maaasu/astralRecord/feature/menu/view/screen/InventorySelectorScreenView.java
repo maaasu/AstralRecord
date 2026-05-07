@@ -17,6 +17,12 @@ import java.util.List;
 public final class InventorySelectorScreenView extends BaseMenuScreenView {
     private static final int[] INVENTORY_TYPE_SLOTS = {20, 21, 23, 24};
 
+    /**
+     * 種別選択メニューを描画します。選択中の種別は発光で強調表示します。
+     *
+     * @param inventory 描画先
+     * @param selectedType 現在選択中の種別
+     */
     public void render(@NotNull Inventory inventory, @Nullable InventoryType selectedType) {
         fill(inventory);
         InventoryType[] types = selectableInventoryTypes();
@@ -25,7 +31,7 @@ public final class InventorySelectorScreenView extends BaseMenuScreenView {
             ItemStack icon = createItem(
                 action.getMaterial(),
                 Component.text(action.getDisplayNameJa(), action.getColor()),
-                List.of(Component.text("クリックして開きます。", NamedTextColor.GRAY))
+                List.of(Component.text("クリックして表示する", NamedTextColor.GRAY))
             );
             if (types[i] == selectedType) {
                 icon = withSelectionGlow(icon);

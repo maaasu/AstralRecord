@@ -229,6 +229,7 @@ class AccountRepository {
             } else {
                 addProperty("mode", null as Number?)
             }
+            addProperty("menuShortcutsJson", null as String?)
             addProperty("updatedBy", updatedBy.toString())
         }
     }
@@ -262,6 +263,7 @@ class AccountRepository {
         slotIndex   = get("slotIndex").asInt,
         isActive    = get("isActive").asBoolean,
         mode        = AccountMode.fromValue(get("mode").asByte),
+        menuShortcutsJson = get("menuShortcutsJson")?.takeIf { !it.isJsonNull }?.asString ?: "",
         createdAt   = parseApiDateTime(get("createdAt").asString),
         updatedAt   = parseApiDateTime(get("updatedAt").asString),
         createdBy   = UUID.fromString(get("createdBy").asString),

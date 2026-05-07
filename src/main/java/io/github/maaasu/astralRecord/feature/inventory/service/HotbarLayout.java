@@ -9,7 +9,12 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 
 /**
- * ホットバー領域のスロット変換・反映を扱う補助クラスです。
+ * HOTBAR インベントリのスロット範囲とスナップショット処理を扱います。
+ *
+ * <p>DB slot_index と Bukkit スロットの対応:
+ * <ul>
+ *   <li>DB slot_index 1〜9 ↔ Bukkit storageContents[0〜8]</li>
+ * </ul>
  */
 final class HotbarLayout {
 
@@ -22,41 +27,21 @@ final class HotbarLayout {
     private HotbarLayout() {
     }
 
-    /**
-     * 指定スロットがホットバー管理対象か判定します。
-     *
-     * @param dbSlotIndex API側スロット番号
-     * @return 管理対象なら true
-     */
     static boolean isManagedSlot(int dbSlotIndex) {
         return dbSlotIndex >= DB_SLOT_START && dbSlotIndex <= DB_SLOT_END;
     }
 
-    /**
-     * API側スロット番号を Bukkit 側スロット番号へ変換します。
-     *
-     * @param dbSlotIndex API側スロット番号
-     * @return Bukkit側スロット番号
-     */
     static int toBukkitSlot(int dbSlotIndex) {
         return BUKKIT_SLOT_START + (dbSlotIndex - DB_SLOT_START);
     }
 
-    /**
-     * Bukkit 側スロット番号を API側スロット番号へ変換します。
-     *
-     * @param bukkitSlot Bukkit側スロット番号
-     * @return API側スロット番号
-     */
     static int toDbSlot(int bukkitSlot) {
         return DB_SLOT_START + (bukkitSlot - BUKKIT_SLOT_START);
     }
 
     /**
-     * プレイヤーのホットバー状態をスナップショット化します。
-     *
-     * @param player 取得元プレイヤー
-     * @return ホットバー領域のスナップショット
+     * プレイヤーのホットバー（Bukkit スロット 0〜8）をスナップショット配列として取得します。
+     * 返り値の配列インデックスは Bukkit スロット番号と一致します。
      */
     static @NotNull ItemStack[] createSnapshot(@NotNull Player player) {
         ItemStack[] storage = player.getInventory().getStorageContents();
@@ -67,10 +52,7 @@ final class HotbarLayout {
     }
 
     /**
-     * スナップショット内容をプレイヤーのホットバーへ反映します。
-     *
-     * @param player 反映先プレイヤー
-     * @param snapshot 反映するスナップショット
+     * スナップショット配列をプレイヤーのホットバー（Bukkit スロット 0〜8）へ反映します。
      */
     static void applySnapshot(@NotNull Player player, @NotNull ItemStack[] snapshot) {
         ItemStack[] storage = player.getInventory().getStorageContents();
@@ -81,13 +63,6 @@ final class HotbarLayout {
         player.getInventory().setStorageContents(storage);
     }
 
-    /**
-     * APIエントリをプレイヤーのホットバーへ適用します。
-     *
-     * @param player 反映先プレイヤー
-     * @param entries 反映対象エントリ一覧
-     * @param applier エントリを ItemStack へ解決する関数
-     */
     static void applyEntriesToPlayer(
         @NotNull Player player,
         @NotNull List<InventoryEntryModel> entries,

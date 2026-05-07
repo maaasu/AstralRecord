@@ -7,6 +7,8 @@ import io.github.maaasu.astralRecord.feature.account.service.AccountService;
 import io.github.maaasu.astralRecord.feature.hud.service.PlayerHudService;
 import io.github.maaasu.astralRecord.feature.item.event.ItemInteractionBlockEventHandler;
 import io.github.maaasu.astralRecord.feature.inventory.repository.InventoryRepository;
+import io.github.maaasu.astralRecord.feature.inventory.repository.EquipmentLoadoutRepository;
+import io.github.maaasu.astralRecord.feature.inventory.event.InventoryEquipmentGuiEventHandler;
 import io.github.maaasu.astralRecord.feature.inventory.service.InventorySaveTask;
 import io.github.maaasu.astralRecord.feature.inventory.service.InventoryService;
 import io.github.maaasu.astralRecord.feature.item.service.ItemService;
@@ -16,6 +18,8 @@ import io.github.maaasu.astralRecord.feature.loot.service.LootService;
 import io.github.maaasu.astralRecord.feature.menu.event.MenuOpenEventHandler;
 import io.github.maaasu.astralRecord.feature.menu.repository.MenuShortcutRepository;
 import io.github.maaasu.astralRecord.feature.menu.view.MenuView;
+import io.github.maaasu.astralRecord.feature.mob.repository.MobRepository;
+import io.github.maaasu.astralRecord.feature.mob.service.MobService;
 import io.github.maaasu.astralRecord.feature.player.event.PlayerJoinEventHandler;
 import io.github.maaasu.astralRecord.feature.player.event.PlayerModeEventHandler;
 import io.github.maaasu.astralRecord.feature.player.save.PlayerSaveCoordinator;
@@ -31,8 +35,9 @@ import io.github.maaasu.astralRecord.infrastructure.command.CommandManager;
 import io.github.maaasu.astralRecord.infrastructure.config.ConfigManager;
 import io.github.maaasu.astralRecord.infrastructure.config.ConfigProperties;
 import io.github.maaasu.astralRecord.infrastructure.api.ApiHealthChecker;
-import io.github.maaasu.astralRecord.infrastructure.file.FileDatabaseManager;
-import io.github.maaasu.astralRecord.infrastructure.database.yaml.config.YamlDbConfigUtil;
+import io.github.maaasu.astralRecord.infrastructure.database.file.FileDatabaseManager;
+import io.github.maaasu.astralRecord.infrastructure.database.file.yaml.config.YamlDbConfigUtil;
+import io.github.maaasu.astralRecord.infrastructure.database.sqlserver.SqlServerManager;
 import io.github.maaasu.astralRecord.infrastructure.logging.AuditLogger;
 import io.github.maaasu.astralRecord.infrastructure.logging.AuditLoggerRegistry;
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
@@ -56,6 +61,7 @@ public final class AstralRecord extends JavaPlugin {
     private ResourcePackService resourcePackService;
     private MenuView menuView;
     private MenuShortcutRepository menuShortcutRepository;
+    private MobService mobService;
     private EventManager eventManager;
 
     @Override
@@ -64,9 +70,10 @@ public final class AstralRecord extends JavaPlugin {
         itemService = new ItemService();
         lootService = new LootService();
         itemStackFactory = new ItemStackFactory(lootService);
+        mobService = new MobService(this, new MobRepository());
         // CommandManagerの初期化はPaper Lifecycle APIの制約上、onLoad()内で行う
         // コマンドをここで登録し、initialize()を呼び出す
-        new CommandRegister(itemService, itemStackFactory);
+        new CommandRegister(itemService, itemStackFactory, mobService);
         CommandManager.getInstance().initialize(this);
     }
 
@@ -95,6 +102,9 @@ public final class AstralRecord extends JavaPlugin {
         if (playerHudService != null) {
             playerHudService.stop();
         }
+        if (mobService != null) {
+            mobService.destroyAll();
+        }
         // AuditLoggerのシャットダウン
         AuditLogger.shutdownDefault();
         AuditLoggerRegistry.shutdownAll();
@@ -113,6 +123,8 @@ public final class AstralRecord extends JavaPlugin {
 
 
             // DB 初期化
+            SqlServerManager.getInstance().initialize();
+
             // フォルダ型データベース初期化
             FileDatabaseManager.getInstance();
 
@@ -134,22 +146,23 @@ public final class AstralRecord extends JavaPlugin {
      */
     private void setupFeature() {
         // account
-        AccountRepository accountRepository = new AccountRepository();
+        var accountRepository = new AccountRepository();
         accountService = new AccountService(accountRepository);
 
         // user
-        UserRepository userRepository = new UserRepository();
+        var userRepository = new UserRepository();
         userService = new UserService(userRepository, accountService);
 
         // inventory
-        InventoryRepository inventoryRepository = new InventoryRepository();
-        inventoryService = new InventoryService(inventoryRepository, itemService, itemStackFactory);
+        var inventoryRepository = new InventoryRepository();
+        var equipmentLoadoutRepository = new EquipmentLoadoutRepository();
+        inventoryService = new InventoryService(inventoryRepository, equipmentLoadoutRepository, itemService, itemStackFactory);
 
         // status
         statusService = new StatusService();
         playerHudService = new PlayerHudService(statusService);
 
-        PlayerSaveCoordinator playerSaveCoordinator = new PlayerSaveCoordinator(
+        var playerSaveCoordinator = new PlayerSaveCoordinator(
             java.util.List.of(new InventorySaveTask(inventoryService))
         );
 
@@ -166,7 +179,7 @@ public final class AstralRecord extends JavaPlugin {
         resourcePackService = new ResourcePackService(ConfigProperties.getInstance());
 
         // menu
-        menuShortcutRepository = new MenuShortcutRepository(this);
+        menuShortcutRepository = new MenuShortcutRepository();
         menuView = new MenuView(this);
 
         // item & loot
@@ -174,6 +187,9 @@ public final class AstralRecord extends JavaPlugin {
             lootService.loadAll();
             itemService.loadAll();
         });
+
+        // mob
+        mobService.loadAll();
 
         // item: ProtocolLib パケットアダプタ（icon 差し替え）登録
         ItemStackPacketAdapter packetAdapter = new ItemStackPacketAdapter(this);
@@ -209,6 +225,10 @@ public final class AstralRecord extends JavaPlugin {
         );
         eventManager.registerHandler(
             new MenuOpenEventHandler(this, menuView, menuShortcutRepository, inventoryService),
+            getServer().getPluginManager()
+        );
+        eventManager.registerHandler(
+            new InventoryEquipmentGuiEventHandler(menuView, inventoryService),
             getServer().getPluginManager()
         );
         eventManager.registerHandler(
@@ -248,5 +268,9 @@ public final class AstralRecord extends JavaPlugin {
 
     public StatusService getStatusService() {
         return statusService;
+    }
+
+    public MobService getMobService() {
+        return mobService;
     }
 }

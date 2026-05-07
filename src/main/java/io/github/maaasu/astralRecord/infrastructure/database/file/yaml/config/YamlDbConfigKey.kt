@@ -1,6 +1,8 @@
-package io.github.maaasu.astralRecord.infrastructure.database.yaml.config
+package io.github.maaasu.astralRecord.infrastructure.database.file.yaml.config
 
-
+/**
+ * config.ymlで使用されるキーの定義
+ */
 enum class YamlDbConfigKey(val key: String) {
     SCHEMA_VERSION("schemaVersion"),
     DATABASE("database"),

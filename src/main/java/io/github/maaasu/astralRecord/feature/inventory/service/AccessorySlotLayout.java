@@ -12,7 +12,13 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * アクセサリースロット（オフハンド含む）のレイアウト変換を扱う補助クラスです。
+ * ACCESSORY_SLOT インベントリのスロット定義と適用処理を扱います。
+ *
+ * <p>slot_index 対応表:
+ * <ul>
+ *   <li>1 = オフハンド (OFF_HAND)</li>
+ *   <li>2〜7 = 拡張アクセサリスロット（Bukkit 非対応、DB 管理のみ）</li>
+ * </ul>
  */
 final class AccessorySlotLayout {
 
@@ -30,22 +36,13 @@ final class AccessorySlotLayout {
     private AccessorySlotLayout() {
     }
 
-    /**
-     * 指定スロットがアクセサリー管理対象か判定します。
-     *
-     * @param slotIndex API側スロット番号
-     * @return 管理対象なら true
-     */
     static boolean isManagedSlot(int slotIndex) {
         return slotIndex >= SLOT_MIN && slotIndex <= SLOT_MAX;
     }
 
     /**
-     * APIエントリをプレイヤーのアクセサリースロットへ適用します。
-     *
-     * @param player 反映先プレイヤー
-     * @param entries 反映対象エントリ一覧
-     * @param applier エントリを ItemStack へ解決する関数
+     * ACCESSORY_SLOT インベントリのエントリ一覧をプレイヤーのアクセサリスロットへ反映します。
+     * slot_index 1 のみ Bukkit オフハンドへ反映します。
      */
     static void applyEntriesToPlayer(
         @NotNull Player player,
@@ -71,10 +68,8 @@ final class AccessorySlotLayout {
     }
 
     /**
-     * プレイヤーのアクセサリースロット状態をスナップショット化します。
-     *
-     * @param player 取得元プレイヤー
-     * @return スロット番号を添字とする配列
+     * プレイヤーのオフハンドをスナップショット配列として取得します。
+     * 返り値の配列インデックスは slot_index と対応します（0 番は未使用）。
      */
     static @NotNull ItemStack[] createSnapshot(@NotNull Player player) {
         ItemStack[] snapshot = new ItemStack[SLOT_MAX + 1];
@@ -83,10 +78,7 @@ final class AccessorySlotLayout {
     }
 
     /**
-     * スナップショット内容をプレイヤーのアクセサリースロットへ反映します。
-     *
-     * @param player 反映先プレイヤー
-     * @param snapshot 反映するスナップショット
+     * スナップショット配列をプレイヤーのアクセサリスロットへ反映します。
      */
     static void applySnapshot(@NotNull Player player, @NotNull ItemStack[] snapshot) {
         if (snapshot.length > SLOT_OFF_HAND && snapshot[SLOT_OFF_HAND] != null) {

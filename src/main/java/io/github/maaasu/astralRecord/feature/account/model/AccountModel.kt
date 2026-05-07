@@ -40,6 +40,7 @@ data class AccountModel(
     val slotIndex: Int,
     val isActive: Boolean,
     val mode: AccountMode,
+    val menuShortcutsJson: String,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
     val createdBy: UUID,

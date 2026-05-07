@@ -13,7 +13,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 防具スロット（頭・胴・脚・足）のレイアウト変換を扱う補助クラスです。
+ * EQUIP_SLOT インベントリのスロット定義と適用処理を扱います。
+ *
+ * <p>slot_index 対応表:
+ * <ul>
+ *   <li>1 = メインハンド (MAIN_HAND)</li>
+ *   <li>2 = 頭 (HEAD)</li>
+ *   <li>3 = 胴 (CHEST)</li>
+ *   <li>4 = 脚 (LEGS)</li>
+ *   <li>5 = 足 (FEET)</li>
+ * </ul>
  */
 final class EquipSlotLayout {
 
@@ -28,22 +37,12 @@ final class EquipSlotLayout {
     private EquipSlotLayout() {
     }
 
-    /**
-     * 指定スロットが防具管理対象か判定します。
-     *
-     * @param slotIndex API側スロット番号
-     * @return 管理対象なら true
-     */
     static boolean isManagedSlot(int slotIndex) {
         return slotIndex >= SLOT_MIN && slotIndex <= SLOT_MAX;
     }
 
     /**
-     * APIエントリをプレイヤーの防具スロットへ適用します。
-     *
-     * @param player 反映先プレイヤー
-     * @param entries 反映対象エントリ一覧
-     * @param applier エントリを ItemStack へ解決する関数
+     * EQUIP_SLOT インベントリのエントリ一覧をプレイヤーの装備スロットへ反映します。
      */
     static void applyEntriesToPlayer(
         @NotNull Player player,
@@ -69,10 +68,8 @@ final class EquipSlotLayout {
     }
 
     /**
-     * プレイヤーの防具スロット状態をスナップショット化します。
-     *
-     * @param player 取得元プレイヤー
-     * @return スロット番号を添字とする配列
+     * プレイヤーの現在の装備スロット内容をスナップショット形式で取得します。
+     * 返り値の配列インデックスは slot_index と対応します（0 番は未使用）。
      */
     static @NotNull ItemStack[] createSnapshot(@NotNull Player player) {
         PlayerInventory inventory = player.getInventory();
@@ -85,10 +82,7 @@ final class EquipSlotLayout {
     }
 
     /**
-     * スナップショット内容をプレイヤーの防具スロットへ反映します。
-     *
-     * @param player 反映先プレイヤー
-     * @param snapshot 反映するスナップショット
+     * スナップショット配列をプレイヤーの装備スロットへ反映します。
      */
     static void applySnapshot(@NotNull Player player, @NotNull ItemStack[] snapshot) {
         PlayerInventory inventory = player.getInventory();
@@ -106,7 +100,7 @@ final class EquipSlotLayout {
     }
 
     /**
-     * エントリを ItemStack へ変換する関数インターフェースです。
+     * エントリ解決に使用するコールバック。
      */
     @FunctionalInterface
     interface ItemStackApplier {

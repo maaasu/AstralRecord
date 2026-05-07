@@ -2,6 +2,7 @@ package io.github.maaasu.astralRecord.feature.menu.view;
 
 import io.github.maaasu.astralRecord.feature.menu.model.MenuShortcutAction;
 import io.github.maaasu.astralRecord.feature.menu.model.MenuShortcutSettings;
+import io.github.maaasu.astralRecord.feature.menu.view.screen.BaseMenuScreenView;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -35,7 +36,7 @@ final class CraftShortcutView {
         ItemStack itemStack = createItem(
             Material.NETHER_STAR,
             Component.text("メニュー", NamedTextColor.AQUA),
-            List.of(Component.text("クリックしてメニューを開きます。", NamedTextColor.GRAY))
+            List.of(Component.text("クリックしてメニューを開く", NamedTextColor.GRAY))
         );
         markCraftShortcutIcon(itemStack, -1, MenuShortcutAction.MAIN_MENU);
         return itemStack;
@@ -104,7 +105,7 @@ final class CraftShortcutView {
         ItemStack itemStack = createItem(
             action.getMaterial(),
             Component.text(action.getDisplayNameJa(), action.getColor()),
-            List.of(Component.text("クリックして実行します。", NamedTextColor.GRAY))
+            List.of(Component.text("クリックして実行", NamedTextColor.GRAY))
         );
         markCraftShortcutIcon(itemStack, shortcutSlotIndex, action);
         return itemStack;

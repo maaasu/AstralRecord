@@ -9,7 +9,7 @@ import io.github.maaasu.astralRecord.feature.menu.model.MenuScreen;
 import io.github.maaasu.astralRecord.feature.menu.model.MenuShortcutAction;
 import io.github.maaasu.astralRecord.feature.menu.model.MenuShortcutSettings;
 import io.github.maaasu.astralRecord.feature.menu.repository.MenuShortcutRepository;
-import io.github.maaasu.astralRecord.feature.menu.sound.MenuSound;
+import io.github.maaasu.astralRecord.feature.gui.sound.GuiSound;
 import io.github.maaasu.astralRecord.feature.menu.view.MenuView;
 import io.github.maaasu.astralRecord.feature.player.AstPlayerCache;
 import io.github.maaasu.astralRecord.feature.player.model.AstPlayer;
@@ -22,6 +22,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.CraftingInventory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -75,7 +76,10 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
             if (!(event.getView().getPlayer() instanceof Player player)) {
                 return;
             }
-            renderCraftShortcuts(player);
+            if (craftRenderSuppressed.contains(player.getUniqueId())) {
+                return;
+            }
+            scheduleCraftShortcutRender(player);
         }, LogId.E_5600, "prepare");
     }
 
@@ -103,8 +107,28 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
         runSafely(() -> {
             if (event.getInventory() instanceof CraftingInventory inventory) {
                 menuView.clearCraftShortcuts(inventory);
+                if (event.getPlayer() instanceof Player player) {
+                    menuView.removeCraftShortcutItems(player);
+                }
+            }
+            if (event.getPlayer() instanceof Player player) {
+                scheduleCraftShortcutRender(player);
             }
         }, LogId.E_5600, event.getPlayer().getName());
+    }
+
+    /**
+     * 参加直後にクラフト欄ショートカットを描画します。
+     *
+     * @param event プレイヤー参加イベント
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        runSafely(() -> plugin.getServer().getScheduler().runTaskLater(
+            plugin,
+            () -> scheduleCraftShortcutRender(event.getPlayer()),
+            2L
+        ), LogId.E_5600, event.getPlayer().getName());
     }
 
     /**
@@ -116,6 +140,9 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
     public void onInventoryClick(InventoryClickEvent event) {
         runSafely(() -> {
             if (menuView.isMenuInventory(event.getView().getTopInventory())) {
+                if (menuView.getMenuScreen(event.getView().getTopInventory()) == MenuScreen.EQUIPMENT_GUI) {
+                    return;
+                }
                 event.setCancelled(true);
                 handleMenuClick(event);
                 return;
@@ -130,7 +157,7 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
 
             event.setCancelled(true);
             if (event.getRawSlot() == MenuView.CRAFT_RESULT_RAW_SLOT) {
-                MenuSound.OPEN.play(player);
+                GuiSound.OPEN.play(player);
                 openMainMenu(player);
                 return;
             }
@@ -154,7 +181,7 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
             if (menuView.isMenuInventory(event.getView().getTopInventory())) {
                 event.setCancelled(true);
                 if (event.getWhoClicked() instanceof Player player) {
-                    MenuSound.DENY.play(player);
+                    GuiSound.DENY.play(player);
                 }
                 return;
             }
@@ -184,7 +211,7 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
         }
 
         if (event.getRawSlot() == MenuView.CLOSE_SLOT) {
-            MenuSound.CLOSE.play(player);
+            GuiSound.CLOSE.play(player);
             player.closeInventory();
             return;
         }
@@ -197,6 +224,8 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
         switch (screen) {
             case MAIN -> handleMainMenuClick(player, event.getRawSlot());
             case INVENTORY_SELECTOR -> handleInventorySelectorClick(player, event.getRawSlot());
+            case EQUIPMENT_GUI -> {
+            }
             case SHORTCUT_SLOT_SELECTOR -> handleShortcutSlotSelectorClick(player, event.getRawSlot());
             case SHORTCUT_ACTION_SELECTOR -> handleShortcutActionSelectorClick(player, event.getRawSlot());
         }
@@ -210,16 +239,42 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
      */
     private void handleMainMenuClick(@NotNull Player player, int rawSlot) {
         if (rawSlot == MenuView.INVENTORY_SELECTOR_SLOT) {
-            MenuSound.SELECT.play(player);
-            menuView.openInventorySelector(player);
+            GuiSound.SELECT.play(player);
+            AstPlayer astPlayer = AstPlayerCache.get(player);
+            menuView.openInventorySelector(
+                player,
+                astPlayer == null ? null : inventoryService.getDisplayedInventoryType(astPlayer.getAccount().getUuid())
+            );
+            return;
+        }
+        if (rawSlot == MenuView.EQUIPMENT_GUI_SLOT) {
+            AstPlayer astPlayer = AstPlayerCache.get(player);
+            if (astPlayer == null) {
+                GuiSound.DENY.play(player);
+                return;
+            }
+            GuiSound.SELECT.play(player);
+            menuView.openEquipmentGui(
+                player,
+                new org.bukkit.inventory.ItemStack[] {
+                    null,
+                    inventoryService.getAccessorySnapshotItem(astPlayer, 1),
+                    inventoryService.getAccessorySnapshotItem(astPlayer, 2),
+                    inventoryService.getAccessorySnapshotItem(astPlayer, 3),
+                    inventoryService.getAccessorySnapshotItem(astPlayer, 4),
+                    inventoryService.getAccessorySnapshotItem(astPlayer, 5),
+                    inventoryService.getAccessorySnapshotItem(astPlayer, 6),
+                    inventoryService.getAccessorySnapshotItem(astPlayer, 7)
+                }
+            );
             return;
         }
         if (rawSlot == MenuView.SHORTCUT_SETTINGS_SLOT) {
-            MenuSound.SELECT.play(player);
+            GuiSound.SELECT.play(player);
             menuView.openShortcutSlotSelector(player, settings(player));
             return;
         }
-        MenuSound.DENY.play(player);
+        GuiSound.DENY.play(player);
     }
 
     /**
@@ -230,14 +285,14 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
      */
     private void handleInventorySelectorClick(@NotNull Player player, int rawSlot) {
         if (rawSlot == MenuView.BACK_SLOT) {
-            MenuSound.SELECT.play(player);
+            GuiSound.SELECT.play(player);
             menuView.open(player);
             return;
         }
 
         InventoryType inventoryType = menuView.getInventoryTypeAtSlot(rawSlot);
         if (inventoryType == null) {
-            MenuSound.DENY.play(player);
+            GuiSound.DENY.play(player);
             return;
         }
 
@@ -252,18 +307,18 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
      */
     private void handleShortcutSlotSelectorClick(@NotNull Player player, int rawSlot) {
         if (rawSlot == MenuView.BACK_SLOT) {
-            MenuSound.SELECT.play(player);
+            GuiSound.SELECT.play(player);
             menuView.open(player);
             return;
         }
 
         int shortcutSlot = menuView.getShortcutSettingSlotAtSlot(rawSlot);
         if (shortcutSlot < 0) {
-            MenuSound.DENY.play(player);
+            GuiSound.DENY.play(player);
             return;
         }
 
-        MenuSound.SELECT.play(player);
+        GuiSound.SELECT.play(player);
         menuView.openShortcutActionSelector(player, shortcutSlot, settings(player).getAction(shortcutSlot));
     }
 
@@ -275,26 +330,26 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
      */
     private void handleShortcutActionSelectorClick(@NotNull Player player, int rawSlot) {
         if (rawSlot == MenuView.BACK_SLOT) {
-            MenuSound.SELECT.play(player);
+            GuiSound.SELECT.play(player);
             menuView.openShortcutSlotSelector(player, settings(player));
             return;
         }
 
         MenuShortcutAction action = menuView.getShortcutActionAtSlot(rawSlot);
         if (action == null) {
-            MenuSound.DENY.play(player);
+            GuiSound.DENY.play(player);
             return;
         }
 
         AstPlayer astPlayer = AstPlayerCache.get(player);
         if (astPlayer == null) {
-            MenuSound.DENY.play(player);
+            GuiSound.DENY.play(player);
             return;
         }
 
         int shortcutSlot = menuView.getShortcutSlotIndex(player.getOpenInventory().getTopInventory());
         shortcutRepository.updateSlot(astPlayer.getAccount().getUuid(), shortcutSlot, action);
-        MenuSound.SELECT.play(player);
+        GuiSound.SELECT.play(player);
         scheduleCraftShortcutRender(player);
         menuView.openShortcutSlotSelector(player, settings(player));
     }
@@ -307,12 +362,12 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
      */
     private void executeShortcutAction(@NotNull Player player, @NotNull MenuShortcutAction action) {
         if (action == MenuShortcutAction.NONE) {
-            MenuSound.SELECT.play(player);
+            GuiSound.SELECT.play(player);
             menuView.openShortcutSlotSelector(player, settings(player));
             return;
         }
         if (action == MenuShortcutAction.MAIN_MENU) {
-            MenuSound.OPEN.play(player);
+            GuiSound.OPEN.play(player);
             openMainMenu(player);
             return;
         }
@@ -320,7 +375,7 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
             applyInventoryShortcut(player, action.getInventoryType());
             return;
         }
-        MenuSound.DENY.play(player);
+        GuiSound.DENY.play(player);
     }
 
     /**
@@ -332,15 +387,18 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
     private void applyInventoryShortcut(@NotNull Player player, @NotNull InventoryType inventoryType) {
         AstPlayer astPlayer = AstPlayerCache.get(player);
         if (astPlayer == null || !astPlayer.getAccount().getMode().shouldReflectInventoryToGui()) {
-            MenuSound.DENY.play(player);
+            GuiSound.DENY.play(player);
+            return;
+        }
+        if (inventoryService.getDisplayedInventoryType(astPlayer.getAccount().getUuid()) == inventoryType) {
+            GuiSound.SELECT.play(player);
             return;
         }
 
-        MenuSound.SELECT.play(player);
+        GuiSound.SELECT.play(player);
         suppressCraftRendering(player);
         menuView.clearCraftShortcuts(player);
         inventoryService.applyInventoryToGui(astPlayer, inventoryType);
-        player.closeInventory();
         plugin.getServer().getScheduler().runTask(plugin, () -> resumeCraftRendering(player));
     }
 
@@ -373,14 +431,20 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
      * @param player 表示対象プレイヤー
      */
     private void renderCraftShortcuts(@NotNull Player player) {
-        if (craftRenderSuppressed.contains(player.getUniqueId())) {
+        UUID playerId = player.getUniqueId();
+        if (craftRenderSuppressed.contains(playerId)) {
             return;
         }
         AstPlayer astPlayer = AstPlayerCache.get(player);
         if (astPlayer == null || astPlayer.getAccount().getMode() != AccountMode.PLAYER) {
             return;
         }
-        menuView.renderCraftShortcuts(player, shortcutRepository.findByAccountId(astPlayer.getAccount().getUuid()));
+        craftRenderSuppressed.add(playerId);
+        try {
+            menuView.renderCraftShortcuts(player, shortcutRepository.findByAccountId(astPlayer.getAccount().getUuid()));
+        } finally {
+            craftRenderSuppressed.remove(playerId);
+        }
     }
 
     /**
@@ -399,6 +463,7 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
      */
     private void resumeCraftRendering(@NotNull Player player) {
         craftRenderSuppressed.remove(player.getUniqueId());
+        scheduleCraftShortcutRender(player);
     }
 
     /**

@@ -92,6 +92,27 @@ class InventoryRepository {
         return sendWithBody(path, "PUT", body, ::parseInventoryEntryModel)
     }
 
+    fun deleteEntry(
+        inventoryEntryId: UUID,
+        updatedBy: UUID,
+    ): Boolean {
+        val path = "/api/inventory/entries/$inventoryEntryId?updated_by=$updatedBy"
+        try {
+            ApiRequestUtil.buildClient().use { client ->
+                val request = ApiRequestUtil.buildRequestBuilder(path).DELETE().build()
+                val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+                return when (response.statusCode()) {
+                    204 -> true
+                    404 -> false
+                    else -> throw IOException("Unexpected status ${response.statusCode()} for DELETE $path")
+                }
+            }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw RuntimeException(e)
+        }
+    }
+
     fun updateMetadata(
         inventoryId: UUID,
         metadataJson: String?,

@@ -51,17 +51,72 @@ public final class EquipmentMenuScreenView extends BaseMenuScreenView {
     ) {
         fill(inventory);
         PlayerInventory playerInventory = player.getInventory();
-        inventory.setItem(EQUIPMENT_HEAD_SLOT, itemOrPlaceholder(playerInventory.getHelmet(), Material.MINECART, "頭", "頭装備スロット"));
-        inventory.setItem(EQUIPMENT_CHEST_SLOT, itemOrPlaceholder(playerInventory.getChestplate(), Material.MINECART, "胴", "胴装備スロット"));
-        inventory.setItem(EQUIPMENT_LEGS_SLOT, itemOrPlaceholder(playerInventory.getLeggings(), Material.MINECART, "脚", "脚装備スロット"));
-        inventory.setItem(EQUIPMENT_FEET_SLOT, itemOrPlaceholder(playerInventory.getBoots(), Material.MINECART, "足", "足装備スロット"));
-        inventory.setItem(EQUIPMENT_OFF_HAND_SLOT, itemOrPlaceholder(playerInventory.getItemInOffHand(), Material.MINECART, "オフハンド", "オフハンドまたはアクセサリースロット"));
-        inventory.setItem(EQUIPMENT_ACCESSORY_2_SLOT, itemOrPlaceholder(accessoryAt(accessories, 2), Material.MINECART, "ネックレス", "アクセサリースロット"));
-        inventory.setItem(EQUIPMENT_ACCESSORY_3_SLOT, itemOrPlaceholder(accessoryAt(accessories, 3), Material.MINECART, "リング", "アクセサリースロット"));
-        inventory.setItem(EQUIPMENT_ACCESSORY_4_SLOT, itemOrPlaceholder(accessoryAt(accessories, 4), Material.MINECART, "イヤリング", "アクセサリースロット"));
-        inventory.setItem(EQUIPMENT_ACCESSORY_5_SLOT, itemOrPlaceholder(accessoryAt(accessories, 5), Material.MINECART, "ブレスレット", "アクセサリースロット"));
-        inventory.setItem(EQUIPMENT_ACCESSORY_6_SLOT, itemOrPlaceholder(accessoryAt(accessories, 6), Material.MINECART, "ベルト", "アクセサリースロット"));
-        inventory.setItem(EQUIPMENT_ACCESSORY_7_SLOT, itemOrPlaceholder(accessoryAt(accessories, 7), Material.MINECART, "チャーム", "アクセサリースロット"));
+        inventory.setItem(EQUIPMENT_HEAD_SLOT, itemOrPlaceholder(
+            playerInventory.getHelmet(),
+            Material.MINECART,
+            "頭",
+            "頭防具スロット"
+        ));
+        inventory.setItem(EQUIPMENT_CHEST_SLOT, itemOrPlaceholder(
+            playerInventory.getChestplate(),
+            Material.MINECART,
+            "胴",
+            "胴防具スロット"
+        ));
+        inventory.setItem(EQUIPMENT_LEGS_SLOT, itemOrPlaceholder(
+            playerInventory.getLeggings(),
+            Material.MINECART,
+            "脚",
+            "脚防具スロット"
+        ));
+        inventory.setItem(EQUIPMENT_FEET_SLOT, itemOrPlaceholder(
+            playerInventory.getBoots(),
+            Material.MINECART,
+            "足",
+            "足防具スロット"
+        ));
+        inventory.setItem(EQUIPMENT_OFF_HAND_SLOT, itemOrPlaceholder(
+            playerInventory.getItemInOffHand(),
+            Material.MINECART,
+            "オフハンド",
+            "盾またはアクセサリ"
+        ));
+        inventory.setItem(EQUIPMENT_ACCESSORY_2_SLOT, itemOrPlaceholder(
+            accessoryAt(accessories, 2),
+            Material.MINECART,
+            "首飾り",
+            "アクセサリスロット"
+        ));
+        inventory.setItem(EQUIPMENT_ACCESSORY_3_SLOT, itemOrPlaceholder(
+            accessoryAt(accessories, 3),
+            Material.MINECART,
+            "指輪",
+            "アクセサリスロット"
+        ));
+        inventory.setItem(EQUIPMENT_ACCESSORY_4_SLOT, itemOrPlaceholder(
+            accessoryAt(accessories, 4),
+            Material.MINECART,
+            "耳飾り",
+            "アクセサリスロット"
+        ));
+        inventory.setItem(EQUIPMENT_ACCESSORY_5_SLOT, itemOrPlaceholder(
+            accessoryAt(accessories, 5),
+            Material.MINECART,
+            "腕輪",
+            "アクセサリスロット"
+        ));
+        inventory.setItem(EQUIPMENT_ACCESSORY_6_SLOT, itemOrPlaceholder(
+            accessoryAt(accessories, 6),
+            Material.MINECART,
+            "ベルト",
+            "アクセサリスロット"
+        ));
+        inventory.setItem(EQUIPMENT_ACCESSORY_7_SLOT, itemOrPlaceholder(
+            accessoryAt(accessories, 7),
+            Material.MINECART,
+            "護符",
+            "アクセサリスロット"
+        ));
         inventory.setItem(BACK_SLOT, backItem());
         inventory.setItem(CLOSE_SLOT, closeItem());
     }

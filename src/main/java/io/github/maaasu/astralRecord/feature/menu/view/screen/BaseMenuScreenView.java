@@ -29,7 +29,7 @@ public abstract class BaseMenuScreenView {
         return createItem(
             Material.ARROW,
             Component.text("戻る", NamedTextColor.WHITE),
-            List.of(Component.text("前の画面へ戻ります。", NamedTextColor.GRAY))
+            List.of(Component.text("前の画面へ戻る", NamedTextColor.GRAY))
         );
     }
 
@@ -37,7 +37,7 @@ public abstract class BaseMenuScreenView {
         return createItem(
             Material.BARRIER,
             Component.text("閉じる", NamedTextColor.RED),
-            List.of(Component.text("メニューを閉じます。", NamedTextColor.GRAY))
+            List.of(Component.text("メニューを閉じる", NamedTextColor.GRAY))
         );
     }
 

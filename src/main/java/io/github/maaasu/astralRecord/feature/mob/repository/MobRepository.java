@@ -4,7 +4,7 @@ import io.github.maaasu.astralRecord.feature.mob.model.MobBaseStat;
 import io.github.maaasu.astralRecord.feature.mob.model.MobCategory;
 import io.github.maaasu.astralRecord.feature.mob.model.MobIdleConfig;
 import io.github.maaasu.astralRecord.feature.mob.model.MobTemplate;
-import io.github.maaasu.astralRecord.infrastructure.file.FileDatabaseManager;
+import io.github.maaasu.astralRecord.infrastructure.database.file.FileDatabaseManager;
 import io.github.maaasu.astralRecord.infrastructure.util.YamlLoaderUtil;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -19,16 +19,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Mob YAML定義を読み込むリポジトリ。
+ * Mob YAML 定義を読み込むリポジトリです。
  */
 public class MobRepository {
 
     private static final String MOB_DIRECTORY = "40.features.mob";
 
     /**
-     * すべてのMobテンプレートを読み込みます。
+     * すべての Mob テンプレートを読み込みます。
      *
-     * @return テンプレートIDをキーにしたMobテンプレート
+     * @return テンプレート ID をキーにした Mob テンプレート
      */
     @NotNull
     public Map<String, MobTemplate> findAll() {

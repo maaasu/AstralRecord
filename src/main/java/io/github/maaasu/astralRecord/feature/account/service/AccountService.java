@@ -94,6 +94,7 @@ public class AccountService {
             slotIndex,
             existing.isEmpty(),     // 初めてのアカウントであれば自動で is_active = true
             AccountMode.PLAYER,
+            "{}",
             now,
             now,
             createdBy,

@@ -11,6 +11,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerGameModeChangeEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 
 public class PlayerModeEventHandler extends AbstractEventHandler {
 
@@ -38,6 +39,21 @@ public class PlayerModeEventHandler extends AbstractEventHandler {
             }
             event.setCancelled(true);
         }, LogId.E_5070, event.getWhoClicked().getName());
+    }
+
+    /**
+     * 通常プレイ中の表示用インベントリアイテムが、ドロップ操作で実体化しないように抑止します。
+     *
+     * @param event ドロップイベント
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlayerDropItem(PlayerDropItemEvent event) {
+        runSafely(() -> {
+            if (!isPlayerMode(event.getPlayer())) {
+                return;
+            }
+            event.setCancelled(true);
+        }, LogId.E_5070, event.getPlayer().getName());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

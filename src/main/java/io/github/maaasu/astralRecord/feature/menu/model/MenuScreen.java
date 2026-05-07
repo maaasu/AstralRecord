@@ -8,6 +8,8 @@ public enum MenuScreen {
     MAIN,
     /** 表示するインベントリを選択する画面。 */
     INVENTORY_SELECTOR,
+    /** 装備スロットを編集する画面。 */
+    EQUIPMENT_GUI,
     /** ショートカットを設定するクラフトスロットを選択する画面。 */
     SHORTCUT_SLOT_SELECTOR,
     /** 選択したクラフトスロットへ割り当てる項目を選ぶ画面。 */

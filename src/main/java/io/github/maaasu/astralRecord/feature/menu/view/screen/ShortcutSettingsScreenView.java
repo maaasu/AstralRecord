@@ -21,7 +21,7 @@ public final class ShortcutSettingsScreenView extends BaseMenuScreenView {
             inventory.setItem(SHORTCUT_SLOT_SLOTS[slot], createItem(
                 action.getMaterial(),
                 Component.text("ショートカット " + (slot + 1) + ": " + action.getDisplayNameJa(), action.getColor()),
-                List.of(Component.text("クリックして編集します。", NamedTextColor.GRAY))
+                List.of(Component.text("クリックして変更する", NamedTextColor.GRAY))
             ));
         }
         inventory.setItem(BACK_SLOT, backItem());
@@ -35,7 +35,7 @@ public final class ShortcutSettingsScreenView extends BaseMenuScreenView {
             MenuShortcutAction action = actions[i];
             Component current = action == currentAction
                 ? Component.text("現在の設定", NamedTextColor.GREEN)
-                : Component.text("クリックして切り替えます。", NamedTextColor.GRAY);
+                : Component.text("クリックして割り当てる", NamedTextColor.GRAY);
             inventory.setItem(SHORTCUT_ACTION_SLOTS[i], createItem(
                 action.getMaterial(),
                 Component.text(action.getDisplayNameJa(), action.getColor()),

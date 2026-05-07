@@ -32,7 +32,7 @@ public class PlayerHudService {
         if (task != null) {
             return;
         }
-        task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::updateAll, 20L, 20L);
+        task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::updateAll, 10L, 10L);
     }
 
     public void stop() {
@@ -43,6 +43,7 @@ public class PlayerHudService {
     }
 
     private void updateAll() {
+        double tps = Math.min(Bukkit.getServer().getTPS()[0], 20.0);
         for (var astPlayer : AstPlayerCache.getAll()) {
             Player player = astPlayer.getBukkit();
             if (!player.isOnline()) {
@@ -50,9 +51,12 @@ public class PlayerHudService {
             }
 
             StatusSnapshot snapshot = statusService.getStatus(astPlayer);
-            updateActionBar(player, snapshot);
+            if (astPlayer.getAccount().getMode().shouldReflectInventoryToGui()) {
+                updateActionBar(player, snapshot);
+            }
             updateBars(player, snapshot);
-            updateSidebar(player, astPlayer.getAccount().getMode().name(), astPlayer.getUser().getPermission());
+            updateSidebar(player, astPlayer.getAccount().getMode().name(), astPlayer.getUser().getPermission(), tps);
+            updateTabList(player, tps);
         }
     }
 
@@ -86,7 +90,7 @@ public class PlayerHudService {
         }
     }
 
-    private void updateSidebar(Player player, String mode, int permission) {
+    private void updateSidebar(Player player, String mode, int permission, double tps) {
         Scoreboard scoreboard = player.getScoreboard();
         if (scoreboard == Bukkit.getScoreboardManager().getMainScoreboard()) {
             scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
@@ -103,19 +107,67 @@ public class PlayerHudService {
             objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
 
+        int ping = player.getPing();
         clearSidebar(scoreboard);
-        objective.getScore(ColorCodeUtil.DARK_GRAY + "----------------").setScore(5);
-        objective.getScore(ColorCodeUtil.GOLD + "Server " + ColorCodeUtil.WHITE + Bukkit.getServer().getName()).setScore(4);
-        objective.getScore(ColorCodeUtil.AQUA + "Online " + ColorCodeUtil.WHITE + Bukkit.getOnlinePlayers().size() + "/" + Bukkit.getMaxPlayers()).setScore(3);
+        objective.getScore(ColorCodeUtil.DARK_GRAY + "----------------").setScore(7);
+        objective.getScore(ColorCodeUtil.GOLD + "Server " + ColorCodeUtil.WHITE + Bukkit.getServer().getName()).setScore(6);
+        objective.getScore(ColorCodeUtil.AQUA + "Online " + ColorCodeUtil.WHITE + Bukkit.getOnlinePlayers().size() + "/" + Bukkit.getMaxPlayers()).setScore(5);
+        objective.getScore(tpsLegacyColor(tps) + "TPS " + ColorCodeUtil.WHITE + String.format("%.1f", tps)).setScore(4);
+        objective.getScore(pingLegacyColor(ping) + "Ping " + ColorCodeUtil.WHITE + ping + "ms").setScore(3);
         objective.getScore(ColorCodeUtil.BLACK + " ").setScore(2);
         objective.getScore(ColorCodeUtil.BLUE + "Mode " + ColorCodeUtil.WHITE + mode).setScore(1);
         objective.getScore(ColorCodeUtil.GREEN + "Perm " + ColorCodeUtil.WHITE + permission).setScore(0);
+    }
+
+    /**
+     * Tabキー押下時のプレイヤーリストにTPS・pingをヘッダー/フッターとして表示します。
+     *
+     * @param player 対象プレイヤー
+     * @param tps 現在のサーバーTPS（1分平均）
+     */
+    private void updateTabList(Player player, double tps) {
+        int ping = player.getPing();
+        Component header = Component.text()
+            .append(Component.text("ASTRAL RECORD", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD))
+            .append(Component.newline())
+            .append(Component.text("TPS ", NamedTextColor.GRAY))
+            .append(Component.text(String.format("%.1f", tps), tpsTextColor(tps)))
+            .build();
+        Component footer = Component.text()
+            .append(Component.text("Ping ", NamedTextColor.GRAY))
+            .append(Component.text(ping + "ms", pingTextColor(ping)))
+            .build();
+        player.sendPlayerListHeaderAndFooter(header, footer);
     }
 
     private void clearSidebar(Scoreboard scoreboard) {
         for (String entry : scoreboard.getEntries()) {
             scoreboard.resetScores(entry);
         }
+    }
+
+    private String tpsLegacyColor(double tps) {
+        if (tps >= 18.0) return ColorCodeUtil.GREEN;
+        if (tps >= 15.0) return ColorCodeUtil.YELLOW;
+        return ColorCodeUtil.RED;
+    }
+
+    private String pingLegacyColor(int ping) {
+        if (ping < 50) return ColorCodeUtil.GREEN;
+        if (ping < 100) return ColorCodeUtil.YELLOW;
+        return ColorCodeUtil.RED;
+    }
+
+    private NamedTextColor tpsTextColor(double tps) {
+        if (tps >= 18.0) return NamedTextColor.GREEN;
+        if (tps >= 15.0) return NamedTextColor.YELLOW;
+        return NamedTextColor.RED;
+    }
+
+    private NamedTextColor pingTextColor(int ping) {
+        if (ping < 50) return NamedTextColor.GREEN;
+        if (ping < 100) return NamedTextColor.YELLOW;
+        return NamedTextColor.RED;
     }
 
     private double ratio(double current, double max) {

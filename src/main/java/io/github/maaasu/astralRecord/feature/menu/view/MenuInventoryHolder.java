@@ -6,7 +6,9 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.jetbrains.annotations.NotNull;
 
-
+/**
+ * Bukkit インベントリをメニュー画面として識別するための Holder。
+ */
 record MenuInventoryHolder(MenuScreen screen, int shortcutSlotIndex) implements InventoryHolder {
     MenuInventoryHolder(@NotNull MenuScreen screen) {
         this(screen, -1);

@@ -19,7 +19,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 実体Mobのテンプレート管理とpacket表示を担当するサービス。
+ * 論理 Mob のテンプレートロードと packet 表示を管理します。
  */
 public class MobService {
 
@@ -33,10 +33,10 @@ public class MobService {
     private final Map<UUID, MobInstance> instances = new LinkedHashMap<>();
 
     /**
-     * コンストラクタ。
+     * MobService を初期化します。
      *
      * @param plugin     プラグイン
-     * @param repository Mobリポジトリ
+     * @param repository Mob リポジトリ
      */
     public MobService(@NotNull Plugin plugin, @NotNull MobRepository repository) {
         this.plugin = plugin;
@@ -45,9 +45,9 @@ public class MobService {
     }
 
     /**
-     * YAMLからすべてのMobテンプレートを読み込み直します。
+     * YAML からすべての Mob テンプレートを読み込み直します。
      *
-     * @return 読み込み件数
+     * @return 読み込んだ件数
      */
     public int loadAll() {
         templates.clear();
@@ -56,10 +56,10 @@ public class MobService {
     }
 
     /**
-     * 指定IDのMobテンプレートを返します。
+     * 指定 ID の Mob テンプレートを取得します。
      *
-     * @param id テンプレートID
-     * @return Mobテンプレート
+     * @param id テンプレート ID
+     * @return Mob テンプレート
      */
     @Nullable
     public MobTemplate findTemplate(@NotNull String id) {
@@ -67,9 +67,9 @@ public class MobService {
     }
 
     /**
-     * 読み込み済みMob IDの一覧を返します。
+     * 読み込み済み Mob ID の一覧を返します。
      *
-     * @return Mob ID一覧
+     * @return Mob ID 一覧
      */
     @NotNull
     public Collection<String> getLoadedMobIds() {
@@ -77,11 +77,11 @@ public class MobService {
     }
 
     /**
-     * Mobを指定座標へ生成し、近傍プレイヤーへ表示します。
+     * Mob を指定位置へ生成し、周囲プレイヤーへ表示します。
      *
-     * @param templateId テンプレートID
-     * @param location   生成座標
-     * @return 生成したMobインスタンス
+     * @param templateId テンプレート ID
+     * @param location   生成位置
+     * @return 生成した Mob インスタンス
      */
     @Nullable
     public MobInstance spawn(@NotNull String templateId, @NotNull Location location) {
@@ -107,7 +107,7 @@ public class MobService {
     }
 
     /**
-     * 表示中のMobをすべて削除します。
+     * 表示中の Mob をすべて削除します。
      */
     public void destroyAll() {
         for (MobInstance instance : instances.values()) {

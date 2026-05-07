@@ -38,8 +38,3 @@
 - `org.bukkit.entity.Player` の広範囲な直接利用
 - 新機能を既存の無関係パッケージへ混ぜ込むこと
 - enum で管理済みの値（種別名・表示名・コード）の文字列ハードコーディング
-
-## Encoding Safety (Added)
-- Java/Kotlin source files must be UTF-8 (without BOM).
-- Before `mvn clean package`, run `E:\Project\tool\normalize-source-encoding.ps1 -RootPath <project>\src\main\java`.
-- If mojibake is detected, normalize first, then continue implementation.

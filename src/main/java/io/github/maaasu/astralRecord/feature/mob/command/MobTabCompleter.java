@@ -8,16 +8,16 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 
 /**
- * /mob コマンドのタブ補完実装。
+ * /mob コマンドのタブ補完です。
  */
 public class MobTabCompleter extends AstTabCompleter {
 
     private final MobService mobService;
 
     /**
-     * コンストラクタ。
+     * MobTabCompleter を初期化します。
      *
-     * @param mobService Mobサービス
+     * @param mobService Mob サービス
      */
     public MobTabCompleter(@NotNull MobService mobService) {
         super(true);

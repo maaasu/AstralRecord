@@ -35,6 +35,10 @@ final class NormalInventoryLayout {
         return slotIndex >= DB_SLOT_START && slotIndex <= DB_SLOT_END;
     }
 
+    static boolean isManagedGuiSlot(int guiSlot) {
+        return guiSlot >= GUI_SLOT_START && guiSlot <= GUI_SLOT_END;
+    }
+
     /**
      * API エントリ一覧から管理対象スロットの使用状況を収集します。
      *
@@ -119,9 +123,7 @@ final class NormalInventoryLayout {
     static void applyManagedStorageSnapshot(@NotNull Player player, @NotNull ItemStack[] snapshot) {
         ItemStack[] storage = player.getInventory().getStorageContents();
         int maxSlot = Math.min(Math.min(GUI_SLOT_END, storage.length - 1), snapshot.length - 1);
-        for (int guiSlot = GUI_SLOT_START; guiSlot <= maxSlot; guiSlot++) {
-            storage[guiSlot] = snapshot[guiSlot];
-        }
+        if (maxSlot - 8 >= 0) System.arraycopy(snapshot, GUI_SLOT_START, storage, GUI_SLOT_START, maxSlot - 8);
         player.getInventory().setStorageContents(storage);
     }
 }

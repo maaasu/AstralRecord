@@ -6,22 +6,22 @@ import org.bukkit.inventory.PlayerInventory
 
 enum class EquipmentType {
     MAIN_HAND,
-    OFF_HAND,
     HEAD,
     CHEST,
     LEGS,
     FEET,
+    OFF_HAND,
     UNSUPPORTED,
     ;
 
     fun applyTo(inventory: PlayerInventory, itemStack: ItemStack?) {
         when (this) {
             MAIN_HAND -> inventory.setItemInMainHand(itemStack)
-            OFF_HAND -> inventory.setItemInOffHand(itemStack)
             HEAD -> inventory.helmet = itemStack
             CHEST -> inventory.chestplate = itemStack
             LEGS -> inventory.leggings = itemStack
             FEET -> inventory.boots = itemStack
+            OFF_HAND -> inventory.setItemInOffHand(itemStack)
             UNSUPPORTED -> Unit
         }
     }
@@ -35,9 +35,14 @@ enum class EquipmentType {
                 ItemEquipmentSlot.CHEST -> CHEST
                 ItemEquipmentSlot.LEGS -> LEGS
                 ItemEquipmentSlot.FEET -> FEET
+                ItemEquipmentSlot.ACCESSORY -> OFF_HAND
                 else -> UNSUPPORTED
             }
 
+        /**
+         * EQUIP_SLOT インベントリの slot_index から EquipmentType へ変換します。
+         * 1=メインハンド, 2=頭, 3=胴, 4=脚, 5=足
+         */
         @JvmStatic
         fun fromEquipSlotIndex(slotIndex: Int): EquipmentType =
             when (slotIndex) {
@@ -49,6 +54,10 @@ enum class EquipmentType {
                 else -> UNSUPPORTED
             }
 
+        /**
+         * ACCESSORY_SLOT インベントリの slot_index から EquipmentType へ変換します。
+         * 1=オフハンド, 2〜7=拡張スロット（Bukkit 対応なし）
+         */
         @JvmStatic
         fun fromAccessorySlotIndex(slotIndex: Int): EquipmentType =
             when (slotIndex) {

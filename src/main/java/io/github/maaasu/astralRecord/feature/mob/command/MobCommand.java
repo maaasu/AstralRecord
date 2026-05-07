@@ -9,16 +9,16 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Locale;
 
 /**
- * /mob コマンドの実装。
+ * /mob コマンドです。
  */
 public class MobCommand extends AstCommand {
 
     private final MobService mobService;
 
     /**
-     * コンストラクタ。
+     * MobCommand を初期化します。
      *
-     * @param mobService Mobサービス
+     * @param mobService Mob サービス
      */
     public MobCommand(@NotNull MobService mobService) {
         super("mob", "Manage packet mobs.", "/mob <load|list|spawn> [mobId]", true);

@@ -1,4 +1,4 @@
-package io.github.maaasu.astralRecord.infrastructure.file;
+package io.github.maaasu.astralRecord.infrastructure.database.file;
 
 import io.github.maaasu.astralRecord.AstralRecord;
 import io.github.maaasu.astralRecord.infrastructure.config.ConfigProperties;
@@ -11,8 +11,8 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * ファイルベースのデータベースを管理するクラス。
- * 設定されたルートディレクトリ配下のファイルを読み書きします。
+ * フォルダ型データベースを管理するクラス。
+ * 設定されたルートディレクトリ配下のファイルを操作します。
  */
 public class FileDatabaseManager {
 
@@ -31,7 +31,7 @@ public class FileDatabaseManager {
     }
 
     /**
-     * 初期化を行い、ルートディレクトリを確定します。
+     * 初期化処理。ルートディレクトリの準備を行います。
      */
     private void initialize() {
         String rootPath = ConfigProperties.getInstance().getFileDatabaseRootPath();
@@ -50,20 +50,10 @@ public class FileDatabaseManager {
             File dataFolder = AstralRecord.getInstance().getDataFolder();
             this.rootDirectory = new File(dataFolder, rootPath);
         }
-
-        if (!rootDirectory.exists()) {
-            if (rootDirectory.mkdirs()) {
-                //Logger.log(LogId.FILE_DB_ROOT_CREATED, rootDirectory.getPath());
-            } else {
-                //Logger.log(LogId.FILE_DB_ROOT_CREATE_FAILED, rootDirectory.getPath());
-            }
-        } else {
-            //Logger.log(LogId.FILE_DB_INITIALIZED, rootDirectory.getPath());
-        }
     }
 
     /**
-     * 指定された相対パスのYAML設定を取得します。
+     * 指定された相対パスの YAML 設定を取得します。
      *
      * @param relativePath ルートディレクトリからの相対パス
      * @return FileConfiguration
@@ -74,8 +64,8 @@ public class FileDatabaseManager {
     }
 
     /**
-     * 指定されたパスセグメントからYAML設定を取得します。
-     * 例: getConfig("ITEM", "木の剣") -> ルートディレクトリ\ITEM\木の剣.yml
+     * 指定されたパスセグメントから YAML 設定を取得します。
+     * 例: getConfig("ITEM", "冒険者の剣") → ルートディレクトリ\ITEM\冒険者の剣.yml
      *
      * @param pathSegments パスセグメント（可変長引数）
      * @return FileConfiguration
@@ -86,7 +76,7 @@ public class FileDatabaseManager {
     }
 
     /**
-     * 指定された相対パスへファイルを保存します。
+     * 指定された相対パスのファイルを保存します。
      *
      * @param config 保存する設定
      * @param relativePath ルートディレクトリからの相対パス
@@ -94,7 +84,7 @@ public class FileDatabaseManager {
     public void saveConfig(FileConfiguration config, String relativePath) {
         File file = new File(rootDirectory, relativePath);
 
-        // 親ディレクトリを作成
+        // 親ディレクトリの作成
         File parent = file.getParentFile();
         if (parent != null && !parent.exists()) {
             if (!parent.mkdirs()) {
@@ -112,7 +102,7 @@ public class FileDatabaseManager {
 
     /**
      * 指定されたパスセグメントからファイルを保存します。
-     * 例: saveConfig(config, "ITEM", "木の剣") -> ルートディレクトリ\ITEM\木の剣.yml
+     * 例: saveConfig(config, "ITEM", "冒険者の剣") → ルートディレクトリ\ITEM\冒険者の剣.yml
      *
      * @param config 保存する設定
      * @param pathSegments パスセグメント（可変長引数）
@@ -123,7 +113,7 @@ public class FileDatabaseManager {
     }
 
     /**
-     * ファイルが存在するかを確認します。
+     * ファイルが存在するか確認します。
      *
      * @param relativePath ルートディレクトリからの相対パス
      * @return 存在すれば true
@@ -133,8 +123,8 @@ public class FileDatabaseManager {
     }
 
     /**
-     * 指定されたパスセグメントからファイルの存在を確認します。
-     * 例: exists("ITEM", "木の剣") -> ルートディレクトリ\ITEM\木の剣.yml
+     * 指定されたパスセグメントからファイルが存在するか確認します。
+     * 例: exists("ITEM", "冒険者の剣") → ルートディレクトリ\ITEM\冒険者の剣.yml
      *
      * @param pathSegments パスセグメント（可変長引数）
      * @return 存在すれば true
@@ -146,7 +136,7 @@ public class FileDatabaseManager {
 
     /**
      * パスセグメントから相対パスを構築します。
-     * 最後のセグメントに .yml 拡張子を付与します。
+     * 最後のセグメントに .yml 拡張子を付加します。
      *
      * @param pathSegments パスセグメント
      * @return 構築された相対パス
@@ -164,7 +154,7 @@ public class FileDatabaseManager {
             pathBuilder.append(pathSegments[i]);
         }
 
-        // 最後のセグメントに .yml 拡張子を自動付与
+        // 最後のセグメントに .yml 拡張子を追加
         String path = pathBuilder.toString();
         var yml = ".yml";
         if (!path.endsWith(yml)) {
@@ -175,7 +165,7 @@ public class FileDatabaseManager {
     }
 
     /**
-     * ルートディレクトリを返します。
+     * ルートディレクトリを取得します。
      *
      * @return ルートディレクトリ
      */
@@ -190,3 +180,6 @@ public class FileDatabaseManager {
         initialize();
     }
 }
+
+
+
