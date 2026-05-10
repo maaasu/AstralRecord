@@ -20,6 +20,7 @@ import io.github.maaasu.astralRecord.feature.menu.repository.MenuShortcutReposit
 import io.github.maaasu.astralRecord.feature.menu.view.MenuView;
 import io.github.maaasu.astralRecord.feature.mob.repository.MobRepository;
 import io.github.maaasu.astralRecord.feature.mob.service.MobService;
+import io.github.maaasu.astralRecord.feature.player.event.PlayerInventoryClickEvent;
 import io.github.maaasu.astralRecord.feature.player.event.PlayerJoinEventHandler;
 import io.github.maaasu.astralRecord.feature.player.event.PlayerModeEventHandler;
 import io.github.maaasu.astralRecord.feature.player.event.PlayerSneakEventHandler;
@@ -104,6 +105,12 @@ public final class AstralRecord extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (playerService != null) {
+            playerService.saveAllOnlinePlayersAndClear();
+        }
+        if (inventoryService != null) {
+            inventoryService.awaitPendingWrites(5000L);
+        }
         if (playerHudService != null) {
             playerHudService.stop();
         }
@@ -118,6 +125,8 @@ public final class AstralRecord extends JavaPlugin {
         AuditLoggerRegistry.shutdownAll();
         // コマンドマネージャーのシャットダウン
         CommandManager.getInstance().shutdown();
+        getServer().getScheduler().cancelTasks(this);
+        SqlServerManager.getInstance().shutdown();
     }
 
     /**
@@ -220,7 +229,7 @@ public final class AstralRecord extends JavaPlugin {
             getServer().getPluginManager()
         );
         eventManager.registerHandler(
-            new PlayerJoinEventHandler(playerService),
+            new PlayerJoinEventHandler(this, playerService),
             getServer().getPluginManager()
         );
         eventManager.registerHandler(
@@ -249,6 +258,10 @@ public final class AstralRecord extends JavaPlugin {
         );
         eventManager.registerHandler(
             new PlayerSneakEventHandler(dodgeService),
+            getServer().getPluginManager()
+        );
+        eventManager.registerHandler(
+            new PlayerInventoryClickEvent(),
             getServer().getPluginManager()
         );
         playerHudService.start(this);

@@ -1,5 +1,8 @@
 package io.github.maaasu.astralRecord.infrastructure.config;
 
+import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
+import io.github.maaasu.astralRecord.infrastructure.logging.Logger;
+
 import java.util.List;
 
 public class ConfigProperties {
@@ -99,6 +102,9 @@ public class ConfigProperties {
         this.apiAuthApiKey = configManager.getConfig().getString(ConfigKeys.API_AUTH_API_KEY, "");
         this.apiTimeout = configManager.getConfig().getInt(ConfigKeys.API_TIMEOUT, 30000);
         this.apiSslVerifyEnabled = configManager.getConfig().getBoolean(ConfigKeys.API_SSL_VERIFY_ENABLED, true);
+        if (!this.apiSslVerifyEnabled) {
+            Logger.log(LogId.W_1601);
+        }
 
         // Resource pack settings
         this.resourcePackEnabled = configManager.getConfig().getBoolean(ConfigKeys.RESOURCE_PACK_ENABLED, false);

@@ -45,11 +45,11 @@ public class InventoryCommand extends AstCommand {
     }
 
     private InventoryType parseInventoryType(@NotNull String value) {
-        return InventoryType.fromInput(value);
+        return InventoryType.fromCommandInput(value);
     }
 
     private String supportedInventoryTypes() {
-        return InventoryType.getEntries().stream()
+        return InventoryType.commandSwitchableEntries().stream()
             .map(type -> type.toString().toLowerCase())
             .collect(Collectors.joining(", "));
     }

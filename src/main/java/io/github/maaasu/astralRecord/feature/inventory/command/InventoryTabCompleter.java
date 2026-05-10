@@ -16,7 +16,7 @@ public class InventoryTabCompleter extends AstTabCompleter {
     @Override
     protected List<String> getPlayerCompletions(@NotNull AstPlayer player, @NotNull String[] args) {
         if (args.length == 1) {
-            return InventoryType.getEntries().stream()
+            return InventoryType.commandSwitchableEntries().stream()
                 .map(type -> type.toString().toLowerCase())
                 .collect(Collectors.toList());
         }

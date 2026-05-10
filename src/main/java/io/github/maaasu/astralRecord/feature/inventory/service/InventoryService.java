@@ -1,5 +1,6 @@
 package io.github.maaasu.astralRecord.feature.inventory.service;
 
+import io.github.maaasu.astralRecord.AstralRecord;
 import io.github.maaasu.astralRecord.feature.inventory.model.EquipmentType;
 import io.github.maaasu.astralRecord.feature.inventory.model.EquipmentLoadoutModel;
 import io.github.maaasu.astralRecord.feature.inventory.model.EquipmentLoadoutSlotModel;
@@ -34,13 +35,18 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class InventoryService {
     private static final InventoryProfile DEFAULT_PROFILE = InventoryProfile.GAME;
@@ -56,9 +62,21 @@ public class InventoryService {
     private final ItemService itemService;
     private final InventoryItemStackResolver itemStackResolver;
     private final InventorySnapshotCodec snapshotCodec;
+    private final Map<UUID, List<InventoryModel>> inventoryCache = new ConcurrentHashMap<>();
+    private final Map<UUID, List<InventoryEntryModel>> entryCache = new ConcurrentHashMap<>();
+    private final Map<UUID, CompletableFuture<InventoryModel>> pendingInventoryCreates = new ConcurrentHashMap<>();
+    private final Set<UUID> pendingEntryCreates = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> pendingEntryDeletes = ConcurrentHashMap.newKeySet();
+    private final Set<CompletableFuture<?>> pendingWriteTasks = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> refreshingInventories = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> refreshingEntries = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> refreshingLoadouts = ConcurrentHashMap.newKeySet();
     private final Map<UUID, InventoryType> displayedInventoryTypes = new ConcurrentHashMap<>();
+    private final Map<UUID, List<EquipmentLoadoutModel>> equipmentLoadoutCache = new ConcurrentHashMap<>();
     private final Map<UUID, Map<Integer, InventoryEntryModel>> hotbarEntryCache = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> selectedHotbarSlots = new ConcurrentHashMap<>();
+    /** GUI（プレイヤーインベントリ）を開いている間、ホットバーをショートカット表示モードへ切り替える */
+    private final Set<UUID> hotbarShortcutMode = ConcurrentHashMap.newKeySet();
 
     public InventoryService(
         InventoryRepository inventoryRepository,
@@ -74,15 +92,17 @@ public class InventoryService {
     }
 
     public List<InventoryModel> getInventories(UUID accountId) {
-        return inventoryRepository.findByAccountId(accountId);
+        refreshInventoriesAsync(accountId);
+        return getCachedInventories(accountId);
     }
 
     public InventoryModel getInventory(UUID inventoryId) {
-        return inventoryRepository.findById(inventoryId);
+        return findCachedInventory(inventoryId);
     }
 
     public List<InventoryEntryModel> getEntries(UUID inventoryId) {
-        return inventoryRepository.findEntries(inventoryId);
+        refreshEntriesAsync(inventoryId);
+        return getCachedEntries(inventoryId);
     }
 
     public InventoryModel ensureInventory(
@@ -91,18 +111,16 @@ public class InventoryService {
         Integer slotCapacity,
         UUID createdBy
     ) {
-        return inventoryRepository.findByAccountId(accountId).stream()
+        InventoryModel cached = getCachedInventories(accountId).stream()
             .filter(inventory -> inventory.getInventoryType() == inventoryType)
             .filter(this::isDefaultProfile)
             .findFirst()
-            .orElseGet(() -> inventoryRepository.create(
-                accountId,
-                inventoryType,
-                slotCapacity,
-                createdBy,
-                DEFAULT_PROFILE,
-                null
-            ));
+            .orElse(null);
+        if (cached != null) {
+            return cached;
+        }
+
+        return createInventoryOptimistically(accountId, inventoryType, slotCapacity, createdBy, DEFAULT_PROFILE, null);
     }
 
     public InventoryEntryModel addEntry(
@@ -110,7 +128,474 @@ public class InventoryService {
         InventoryEntryDraft draft,
         UUID createdBy
     ) {
-        return inventoryRepository.createEntry(inventoryId, draft, createdBy);
+        return createEntryOptimistically(inventoryId, draft, createdBy);
+    }
+
+    /**
+     * 表示用キャッシュからアカウントのインベントリ一覧を取得します。
+     *
+     * @param accountId 対象アカウントID
+     * @return キャッシュ済みインベントリ一覧
+     */
+    private @NotNull List<InventoryModel> getCachedInventories(@NotNull UUID accountId) {
+        return inventoryCache.getOrDefault(accountId, List.of());
+    }
+
+    /**
+     * 表示用キャッシュからインベントリ内の entry 一覧を取得します。
+     *
+     * @param inventoryId 対象インベントリID
+     * @return キャッシュ済み entry 一覧
+     */
+    private @NotNull List<InventoryEntryModel> getCachedEntries(@NotNull UUID inventoryId) {
+        return entryCache.getOrDefault(inventoryId, List.of());
+    }
+
+    private @Nullable InventoryModel findCachedInventory(@NotNull UUID inventoryId) {
+        return inventoryCache.values().stream()
+            .flatMap(List::stream)
+            .filter(inventory -> inventory.getInventoryId().equals(inventoryId))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private void refreshInventoriesAsync(@NotNull UUID accountId) {
+        if (!refreshingInventories.add(accountId)) {
+            return;
+        }
+        CompletableFuture.runAsync(() -> {
+            try {
+                List<InventoryModel> inventories = inventoryRepository.findByAccountId(accountId);
+                inventoryCache.put(accountId, List.copyOf(inventories));
+                for (InventoryModel inventory : inventories) {
+                    refreshEntries(inventory.getInventoryId());
+                }
+            } catch (RuntimeException e) {
+                Logger.warn(LogId.W_5252, accountId, e.getMessage());
+            } finally {
+                refreshingInventories.remove(accountId);
+            }
+        });
+    }
+
+    private void refreshEntriesAsync(@NotNull UUID inventoryId) {
+        if (!refreshingEntries.add(inventoryId)) {
+            return;
+        }
+        CompletableFuture.runAsync(() -> {
+            try {
+                refreshEntries(inventoryId);
+            } catch (RuntimeException e) {
+                Logger.warn(LogId.W_5252, inventoryId, e.getMessage());
+            } finally {
+                refreshingEntries.remove(inventoryId);
+            }
+        });
+    }
+
+    private void refreshEntries(@NotNull UUID inventoryId) {
+        List<InventoryEntryModel> pending = getCachedEntries(inventoryId).stream()
+            .filter(entry -> pendingEntryCreates.contains(entry.getInventoryEntryId()))
+            .toList();
+        List<InventoryEntryModel> refreshed = new ArrayList<>(inventoryRepository.findEntries(inventoryId));
+        refreshed.removeIf(entry -> pendingEntryDeletes.contains(entry.getInventoryEntryId()));
+        refreshed.addAll(pending);
+        entryCache.put(inventoryId, List.copyOf(refreshed));
+    }
+
+    private void refreshEquipmentLoadoutsAsync(@NotNull UUID accountId) {
+        if (!refreshingLoadouts.add(accountId)) {
+            return;
+        }
+        CompletableFuture.runAsync(() -> {
+            try {
+                List<EquipmentLoadoutModel> loadouts = equipmentLoadoutRepository.findByAccountId(accountId, DEFAULT_PROFILE);
+                equipmentLoadoutCache.put(accountId, List.copyOf(loadouts));
+            } catch (RuntimeException e) {
+                Logger.warn(LogId.W_5253, accountId, e.getMessage());
+            } finally {
+                refreshingLoadouts.remove(accountId);
+            }
+        });
+    }
+
+    private void refreshDisplayedInventoryForGuiAsync(
+        @NotNull AstPlayer astPlayer,
+        @NotNull InventoryType inventoryType
+    ) {
+        UUID accountId = astPlayer.getAccount().getUuid();
+        CompletableFuture.supplyAsync(() -> {
+            List<InventoryModel> inventories = inventoryRepository.findByAccountId(accountId);
+            inventoryCache.put(accountId, List.copyOf(inventories));
+            InventoryModel selected = inventories.stream()
+                .filter(this::isDefaultProfile)
+                .filter(inventory -> inventory.getInventoryType() == inventoryType)
+                .findFirst()
+                .orElse(null);
+            if (selected != null) {
+                refreshEntries(selected.getInventoryId());
+            }
+            return selected;
+        }).thenAccept(selected -> {
+            AstralRecord plugin = AstralRecord.getInstance();
+            if (plugin == null || selected == null || !astPlayer.getBukkit().isOnline()) {
+                return;
+            }
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (astPlayer.getAccount().getMode().shouldReflectInventoryToGui()
+                    && getDisplayedInventoryType(accountId) == inventoryType) {
+                    applyInventoryToGui(astPlayer.getBukkit(), selected);
+                    astPlayer.getBukkit().updateInventory();
+                }
+            });
+        }).exceptionally(error -> {
+            Logger.warn(LogId.W_5252, accountId, error.getMessage());
+            return null;
+        });
+    }
+
+    private @NotNull InventoryModel createInventoryOptimistically(
+        @NotNull UUID accountId,
+        @NotNull InventoryType inventoryType,
+        @Nullable Integer slotCapacity,
+        @NotNull UUID createdBy,
+        @NotNull InventoryProfile profile,
+        @Nullable String metadataJson
+    ) {
+        UUID temporaryId = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now();
+        InventoryModel optimistic = new InventoryModel(
+            temporaryId,
+            accountId,
+            inventoryType,
+            profile.getCode(),
+            slotCapacity,
+            true,
+            metadataJson,
+            now,
+            now,
+            createdBy,
+            createdBy,
+            false
+        );
+        putInventoryInCache(optimistic);
+
+        CompletableFuture<InventoryModel> future = CompletableFuture.supplyAsync(() ->
+            inventoryRepository.create(accountId, inventoryType, slotCapacity, createdBy, profile, metadataJson)
+        ).whenComplete((saved, error) -> {
+            pendingInventoryCreates.remove(temporaryId);
+            if (error != null) {
+                Logger.warn(LogId.W_5252, accountId, error.getMessage());
+                return;
+            }
+            replaceInventoryInCache(temporaryId, saved);
+        });
+        pendingInventoryCreates.put(temporaryId, future);
+        return optimistic;
+    }
+
+    private @NotNull InventoryEntryModel createEntryOptimistically(
+        @NotNull UUID inventoryId,
+        @NotNull InventoryEntryDraft draft,
+        @NotNull UUID createdBy
+    ) {
+        UUID temporaryId = UUID.randomUUID();
+        InventoryEntryModel optimistic = createEntryModel(temporaryId, inventoryId, draft, createdBy, false);
+        putEntryInCache(optimistic);
+        pendingEntryCreates.add(temporaryId);
+
+        CompletableFuture<InventoryModel> pendingInventory = pendingInventoryCreates.get(inventoryId);
+        CompletableFuture<InventoryEntryModel> createFuture = pendingInventory == null
+            ? CompletableFuture.supplyAsync(() -> inventoryRepository.createEntry(inventoryId, toDraft(findCachedEntry(temporaryId), draft), createdBy))
+            : pendingInventory.thenApply(savedInventory ->
+                inventoryRepository.createEntry(savedInventory.getInventoryId(), toDraft(findCachedEntry(temporaryId), draft), createdBy)
+            );
+
+        createFuture.whenComplete((saved, error) -> {
+            pendingEntryCreates.remove(temporaryId);
+            if (error != null) {
+                Logger.warn(LogId.W_5252, inventoryId, error.getMessage());
+                return;
+            }
+            replaceEntryInCache(temporaryId, saved);
+        });
+        return optimistic;
+    }
+
+    private @NotNull InventoryEntryModel createEntryOptimistically(
+        @NotNull UUID inventoryId,
+        @NotNull InventoryEntryDraft displayDraft,
+        @NotNull Supplier<InventoryEntryDraft> apiDraftSupplier,
+        @NotNull UUID createdBy
+    ) {
+        UUID temporaryId = UUID.randomUUID();
+        InventoryEntryModel optimistic = createEntryModel(temporaryId, inventoryId, displayDraft, createdBy, false);
+        putEntryInCache(optimistic);
+        pendingEntryCreates.add(temporaryId);
+
+        CompletableFuture<InventoryModel> pendingInventory = pendingInventoryCreates.get(inventoryId);
+        CompletableFuture<InventoryEntryModel> createFuture = pendingInventory == null
+            ? CompletableFuture.supplyAsync(() -> inventoryRepository.createEntry(inventoryId, apiDraftSupplier.get(), createdBy))
+            : pendingInventory.thenApply(savedInventory ->
+                inventoryRepository.createEntry(savedInventory.getInventoryId(), apiDraftSupplier.get(), createdBy)
+            );
+
+        createFuture.whenComplete((saved, error) -> {
+            pendingEntryCreates.remove(temporaryId);
+            if (error != null) {
+                Logger.warn(LogId.W_5252, inventoryId, error.getMessage());
+                return;
+            }
+            replaceEntryInCache(temporaryId, saved);
+        });
+        return optimistic;
+    }
+
+    private @NotNull InventoryEntryModel updateEntryOptimistically(
+        @NotNull UUID inventoryEntryId,
+        @NotNull InventoryEntryDraft draft,
+        @NotNull UUID updatedBy
+    ) {
+        InventoryEntryModel current = findCachedEntry(inventoryEntryId);
+        if (current == null) {
+            CompletableFuture.runAsync(() -> inventoryRepository.updateEntry(inventoryEntryId, draft, updatedBy))
+                .exceptionally(error -> {
+                    Logger.warn(LogId.W_5252, inventoryEntryId, error.getMessage());
+                    return null;
+                });
+            return createEntryModel(inventoryEntryId, UUID.randomUUID(), draft, updatedBy, false);
+        }
+
+        InventoryEntryModel updated = new InventoryEntryModel(
+            current.getInventoryEntryId(),
+            current.getInventoryId(),
+            draft.getSlotIndex(),
+            draft.getItemCategory(),
+            draft.getItemId(),
+            draft.getInstanceType(),
+            draft.getInstanceId(),
+            draft.getQuantity(),
+            draft.getMetadataJson(),
+            current.getCreatedAt(),
+            LocalDateTime.now(),
+            current.getCreatedBy(),
+            updatedBy,
+            false
+        );
+        replaceEntryInCache(inventoryEntryId, updated);
+
+        if (pendingEntryCreates.contains(inventoryEntryId)) {
+            return updated;
+        }
+
+        CompletableFuture.runAsync(() -> inventoryRepository.updateEntry(inventoryEntryId, draft, updatedBy))
+            .exceptionally(error -> {
+                Logger.warn(LogId.W_5252, inventoryEntryId, error.getMessage());
+                return null;
+            });
+        return updated;
+    }
+
+    private void deleteEntryOptimistically(@NotNull UUID inventoryEntryId, @NotNull UUID updatedBy) {
+        pendingEntryDeletes.add(inventoryEntryId);
+        removeEntryFromCache(inventoryEntryId);
+        if (pendingEntryCreates.remove(inventoryEntryId)) {
+            pendingEntryDeletes.remove(inventoryEntryId);
+            return;
+        }
+        CompletableFuture.runAsync(() -> inventoryRepository.deleteEntry(inventoryEntryId, updatedBy))
+            .whenComplete((ignored, error) -> pendingEntryDeletes.remove(inventoryEntryId))
+            .exceptionally(error -> {
+                Logger.warn(LogId.W_5252, inventoryEntryId, error.getMessage());
+                return null;
+            });
+    }
+
+    private void updateMetadataAsync(
+        @NotNull UUID inventoryId,
+        @Nullable String metadataJson,
+        @NotNull UUID updatedBy
+    ) {
+        updateInventoryMetadataInCache(inventoryId, metadataJson, updatedBy);
+        CompletableFuture<InventoryModel> pendingInventory = pendingInventoryCreates.get(inventoryId);
+        CompletableFuture<?> updateFuture = pendingInventory == null
+            ? CompletableFuture.runAsync(() -> inventoryRepository.updateMetadata(inventoryId, metadataJson, updatedBy))
+            : pendingInventory.thenAccept(savedInventory ->
+                inventoryRepository.updateMetadata(savedInventory.getInventoryId(), metadataJson, updatedBy)
+            );
+        trackWriteTask(updateFuture.exceptionally(error -> {
+            Logger.warn(LogId.W_5252, inventoryId, error.getMessage());
+            return null;
+        }));
+    }
+
+    private void trackWriteTask(@NotNull CompletableFuture<?> future) {
+        pendingWriteTasks.add(future);
+        future.whenComplete((ignored, error) -> pendingWriteTasks.remove(future));
+    }
+
+    /**
+     * 未完了の非同期保存処理を指定時間だけ待機します。
+     * プラグイン停止時、DB 接続を閉じる前に呼び出してください。
+     *
+     * @param timeoutMillis 最大待機時間（ミリ秒）
+     */
+    public void awaitPendingWrites(long timeoutMillis) {
+        long deadline = System.currentTimeMillis() + Math.max(0L, timeoutMillis);
+        for (CompletableFuture<?> future : List.copyOf(pendingWriteTasks)) {
+            long remaining = deadline - System.currentTimeMillis();
+            if (remaining <= 0L) {
+                return;
+            }
+            try {
+                future.get(remaining, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                Logger.warn(LogId.W_5252, "shutdown", e.getMessage());
+            }
+        }
+    }
+
+    private @NotNull InventoryEntryModel createEntryModel(
+        @NotNull UUID entryId,
+        @NotNull UUID inventoryId,
+        @NotNull InventoryEntryDraft draft,
+        @NotNull UUID actorId,
+        boolean deleted
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+        return new InventoryEntryModel(
+            entryId,
+            inventoryId,
+            draft.getSlotIndex(),
+            draft.getItemCategory(),
+            draft.getItemId(),
+            draft.getInstanceType(),
+            draft.getInstanceId(),
+            draft.getQuantity(),
+            draft.getMetadataJson(),
+            now,
+            now,
+            actorId,
+            actorId,
+            deleted
+        );
+    }
+
+    private @NotNull InventoryEntryDraft toDraft(
+        @Nullable InventoryEntryModel entry,
+        @NotNull InventoryEntryDraft fallback
+    ) {
+        if (entry == null) {
+            return fallback;
+        }
+        return new InventoryEntryDraft(
+            entry.getSlotIndex(),
+            entry.getItemCategory(),
+            entry.getItemId(),
+            entry.getInstanceType(),
+            entry.getInstanceId(),
+            entry.getQuantity(),
+            entry.getMetadataJson()
+        );
+    }
+
+    private void putInventoryInCache(@NotNull InventoryModel inventory) {
+        inventoryCache.compute(inventory.getAccountId(), (accountId, current) -> {
+            List<InventoryModel> next = new ArrayList<>(current == null ? List.of() : current);
+            next.removeIf(cached -> cached.getInventoryId().equals(inventory.getInventoryId()));
+            next.add(inventory);
+            return Collections.unmodifiableList(next);
+        });
+    }
+
+    private void replaceInventoryInCache(@NotNull UUID temporaryId, @NotNull InventoryModel saved) {
+        inventoryCache.compute(saved.getAccountId(), (accountId, current) -> {
+            List<InventoryModel> next = new ArrayList<>(current == null ? List.of() : current);
+            next.removeIf(cached -> cached.getInventoryId().equals(temporaryId) || cached.getInventoryId().equals(saved.getInventoryId()));
+            next.add(saved);
+            return Collections.unmodifiableList(next);
+        });
+
+        List<InventoryEntryModel> temporaryEntries = entryCache.remove(temporaryId);
+        if (temporaryEntries != null && !temporaryEntries.isEmpty()) {
+            List<InventoryEntryModel> remapped = temporaryEntries.stream()
+                .map(entry -> new InventoryEntryModel(
+                    entry.getInventoryEntryId(),
+                    saved.getInventoryId(),
+                    entry.getSlotIndex(),
+                    entry.getItemCategory(),
+                    entry.getItemId(),
+                    entry.getInstanceType(),
+                    entry.getInstanceId(),
+                    entry.getQuantity(),
+                    entry.getMetadataJson(),
+                    entry.getCreatedAt(),
+                    entry.getUpdatedAt(),
+                    entry.getCreatedBy(),
+                    entry.getUpdatedBy(),
+                    entry.isDeleted()
+                ))
+                .toList();
+            entryCache.put(saved.getInventoryId(), List.copyOf(remapped));
+        }
+    }
+
+    private void updateInventoryMetadataInCache(
+        @NotNull UUID inventoryId,
+        @Nullable String metadataJson,
+        @NotNull UUID updatedBy
+    ) {
+        InventoryModel cached = findCachedInventory(inventoryId);
+        if (cached == null) {
+            return;
+        }
+        InventoryModel updated = new InventoryModel(
+            cached.getInventoryId(),
+            cached.getAccountId(),
+            cached.getInventoryType(),
+            cached.getInventoryProfile(),
+            cached.getSlotCapacity(),
+            cached.isEnabled(),
+            metadataJson,
+            cached.getCreatedAt(),
+            LocalDateTime.now(),
+            cached.getCreatedBy(),
+            updatedBy,
+            cached.isDeleted()
+        );
+        putInventoryInCache(updated);
+    }
+
+    private void putEntryInCache(@NotNull InventoryEntryModel entry) {
+        entryCache.compute(entry.getInventoryId(), (inventoryId, current) -> {
+            List<InventoryEntryModel> next = new ArrayList<>(current == null ? List.of() : current);
+            next.removeIf(cached -> cached.getInventoryEntryId().equals(entry.getInventoryEntryId()));
+            next.add(entry);
+            return Collections.unmodifiableList(next);
+        });
+    }
+
+    private @Nullable InventoryEntryModel findCachedEntry(@NotNull UUID inventoryEntryId) {
+        return entryCache.values().stream()
+            .flatMap(List::stream)
+            .filter(entry -> entry.getInventoryEntryId().equals(inventoryEntryId))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private void replaceEntryInCache(@NotNull UUID entryId, @NotNull InventoryEntryModel replacement) {
+        removeEntryFromCache(entryId);
+        putEntryInCache(replacement);
+    }
+
+    private void removeEntryFromCache(@NotNull UUID inventoryEntryId) {
+        for (UUID inventoryId : List.copyOf(entryCache.keySet())) {
+            entryCache.computeIfPresent(inventoryId, (id, current) -> {
+                List<InventoryEntryModel> next = new ArrayList<>(current);
+                next.removeIf(entry -> entry.getInventoryEntryId().equals(inventoryEntryId));
+                return Collections.unmodifiableList(next);
+            });
+        }
     }
 
     /**
@@ -167,11 +652,15 @@ public class InventoryService {
             ? NormalInventoryLayout.collectUsedSlots(getEntries(targetInventory.getInventoryId()))
             : Set.of();
 
-        return switch (ItemCategory.fromApiValue(model.getCategory())) {
+        int granted = switch (ItemCategory.fromApiValue(model.getCategory())) {
             case EQUIPMENT -> addInstanceItems(targetInventory, model, safeAmount, InventoryInstanceType.EQUIPMENT, usedSlots, accountId);
             case RUNE -> addInstanceItems(targetInventory, model, safeAmount, InventoryInstanceType.RUNE, usedSlots, accountId);
             default -> addStackedItems(targetInventory, model, safeAmount, usedSlots, accountId);
         };
+        if (granted > 0) {
+            autoSwitchDisplayedInventory(astPlayer, inventoryType);
+        }
+        return granted;
     }
 
     public void applyInventoriesToGui(AstPlayer astPlayer) {
@@ -181,22 +670,20 @@ public class InventoryService {
             applyAccessorySlotInventoryToGui(astPlayer);
         }
         applyHotbarInventoryToGui(astPlayer);
+        refreshDisplayedInventoryForGuiAsync(astPlayer, InventoryType.NORMAL);
     }
 
     public List<EquipmentLoadoutModel> getEquipmentLoadouts(UUID accountId) {
-        return equipmentLoadoutRepository.findByAccountId(accountId, DEFAULT_PROFILE);
+        refreshEquipmentLoadoutsAsync(accountId);
+        return equipmentLoadoutCache.getOrDefault(accountId, List.of());
     }
 
     public @Nullable EquipmentLoadoutModel getActiveEquipmentLoadout(UUID accountId) {
-        try {
-            return equipmentLoadoutRepository.findByAccountId(accountId, DEFAULT_PROFILE).stream()
-                .filter(loadout -> loadout.isActive() && !loadout.isDeleted())
-                .findFirst()
-                .orElse(null);
-        } catch (RuntimeException e) {
-            Logger.warn(LogId.W_5252, accountId, e.getMessage());
-            return null;
-        }
+        refreshEquipmentLoadoutsAsync(accountId);
+        return equipmentLoadoutCache.getOrDefault(accountId, List.of()).stream()
+            .filter(loadout -> loadout.isActive() && !loadout.isDeleted())
+            .findFirst()
+            .orElse(null);
     }
 
     public @Nullable EquipmentLoadoutModel ensureActiveEquipmentLoadout(UUID accountId) {
@@ -207,14 +694,16 @@ public class InventoryService {
 
         try {
             List<EquipmentLoadoutModel> loadouts = equipmentLoadoutRepository.findByAccountId(accountId, DEFAULT_PROFILE);
+            equipmentLoadoutCache.put(accountId, List.copyOf(loadouts));
             if (!loadouts.isEmpty()) {
                 EquipmentLoadoutModel activated = equipmentLoadoutRepository.activate(loadouts.get(0).getEquipmentLoadoutId(), accountId);
                 if (activated != null) {
+                    equipmentLoadoutCache.put(accountId, List.of(activated));
                     return activated;
                 }
             }
 
-            return equipmentLoadoutRepository.create(
+            EquipmentLoadoutModel created = equipmentLoadoutRepository.create(
                 accountId,
                 DEFAULT_LOADOUT_NAME,
                 accountId,
@@ -223,6 +712,8 @@ public class InventoryService {
                 true,
                 null
             );
+            equipmentLoadoutCache.put(accountId, List.of(created));
+            return created;
         } catch (RuntimeException e) {
             Logger.warn(LogId.W_5253, accountId, e.getMessage());
             return null;
@@ -246,7 +737,7 @@ public class InventoryService {
 
         var bukkitPlayer = astPlayer.getBukkit();
 
-        var inventories = inventoryRepository.findByAccountId(astPlayer.getAccount().getUuid());
+        var inventories = getInventories(astPlayer.getAccount().getUuid());
         var selectedInventory = inventories.stream()
             .filter(this::isDefaultProfile)
             .filter(inventory -> inventory.getInventoryType() == inventoryType)
@@ -259,6 +750,7 @@ public class InventoryService {
             applyAccessorySlotInventoryToGui(astPlayer);
         }
         applyHotbarInventoryToGui(astPlayer);
+        refreshDisplayedInventoryForGuiAsync(astPlayer, inventoryType);
     }
 
     public @NotNull InventoryType getDisplayedInventoryType(@NotNull UUID accountId) {
@@ -287,7 +779,7 @@ public class InventoryService {
     }
 
     private void applySlottedInventory(Player bukkitPlayer, InventoryModel inventory) {
-        var entries = inventoryRepository.findEntries(inventory.getInventoryId());
+        var entries = getEntries(inventory.getInventoryId());
         var playerInventory = bukkitPlayer.getInventory();
         Map<Integer, ItemStack> itemByGuiSlot = new HashMap<>();
 
@@ -332,14 +824,14 @@ public class InventoryService {
 
         var accountId = astPlayer.getAccount().getUuid();
         var bukkitPlayer = astPlayer.getBukkit();
-        var inventories = inventoryRepository.findByAccountId(accountId);
+        var inventories = getInventories(accountId);
 
         inventories.stream()
             .filter(this::isDefaultProfile)
             .filter(inv -> inv.getInventoryType() == InventoryType.EQUIP_SLOT)
             .findFirst()
             .ifPresent(inventory -> {
-                var entries = inventoryRepository.findEntries(inventory.getInventoryId());
+                var entries = getEntries(inventory.getInventoryId());
                 if (inventory.getMetadataJson() != null && !inventory.getMetadataJson().isBlank()) {
                     ItemStack[] snapshot = snapshotCodec.decode(inventory.getMetadataJson());
                     if (snapshot != null) {
@@ -368,7 +860,7 @@ public class InventoryService {
         );
         var snapshot = EquipSlotLayout.createSnapshot(astPlayer.getBukkit());
         var metadataJson = snapshotCodec.encode(snapshot);
-        inventoryRepository.updateMetadata(inventory.getInventoryId(), metadataJson, accountId);
+        updateMetadataAsync(inventory.getInventoryId(), metadataJson, accountId);
     }
 
     /**
@@ -402,7 +894,7 @@ public class InventoryService {
         existingEntries.stream()
             .filter(e -> e.getSlotIndex() != null && e.getSlotIndex() == slotIndex && !e.isDeleted())
             .findFirst()
-            .ifPresent(existing -> inventoryRepository.updateEntry(
+            .ifPresent(existing -> updateEntryOptimistically(
                 existing.getInventoryEntryId(),
                 new InventoryEntryDraft(
                     existing.getSlotIndex(),
@@ -443,6 +935,10 @@ public class InventoryService {
 
     /**
      * HOTBAR インベントリのスナップショットをプレイヤーのホットバー（スロット 0〜8）へ反映します。
+     * <p>
+     * 同期キャッシュで一度描画した後、API から最新の HOTBAR インベントリ／entries を取得し、
+     * メインスレッドで再描画します。ログイン直後など、キャッシュが空のままダミーアイテムだけ
+     * 表示されてしまうケースを防止します。
      */
     public void applyHotbarInventoryToGui(@NotNull AstPlayer astPlayer) {
         if (!astPlayer.getAccount().getMode().shouldReflectInventoryToGui()) {
@@ -451,8 +947,69 @@ public class InventoryService {
 
         var accountId = astPlayer.getAccount().getUuid();
         var hotbarInventory = ensureInventory(accountId, InventoryType.HOTBAR, HotbarLayout.CAPACITY, accountId);
-        cacheHotbarEntries(accountId, inventoryRepository.findEntries(hotbarInventory.getInventoryId()));
+        cacheHotbarEntries(accountId, getEntries(hotbarInventory.getInventoryId()));
         renderHotbarInventory(astPlayer);
+        refreshHotbarInventoryForGuiAsync(astPlayer);
+    }
+
+    /**
+     * HOTBAR インベントリ／entries を非同期で API から再取得し、
+     * メインスレッドで {@code hotbarEntryCache} を再構築してからホットバーを描画し直します。
+     *
+     * @param astPlayer 対象プレイヤー
+     */
+    private void refreshHotbarInventoryForGuiAsync(@NotNull AstPlayer astPlayer) {
+        UUID accountId = astPlayer.getAccount().getUuid();
+        CompletableFuture.supplyAsync(() -> {
+            List<InventoryModel> inventories = inventoryRepository.findByAccountId(accountId);
+            inventoryCache.put(accountId, List.copyOf(inventories));
+            InventoryModel hotbar = inventories.stream()
+                .filter(this::isDefaultProfile)
+                .filter(inv -> inv.getInventoryType() == InventoryType.HOTBAR)
+                .findFirst()
+                .orElse(null);
+            if (hotbar == null) {
+                return null;
+            }
+            refreshEntries(hotbar.getInventoryId());
+            return hotbar.getInventoryId();
+        }).thenAccept(hotbarInventoryId -> {
+            AstralRecord plugin = AstralRecord.getInstance();
+            if (plugin == null || hotbarInventoryId == null || !astPlayer.getBukkit().isOnline()) {
+                return;
+            }
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (!astPlayer.getAccount().getMode().shouldReflectInventoryToGui()) {
+                    return;
+                }
+                cacheHotbarEntries(accountId, getCachedEntries(hotbarInventoryId));
+                renderHotbarInventory(astPlayer);
+            });
+        }).exceptionally(error -> {
+            Logger.warn(LogId.W_5252, accountId, error.getMessage());
+            return null;
+        });
+    }
+
+    /**
+     * inventoryCache / entryCache の最新状態を元に hotbarEntryCache を再構築します。
+     * <p>
+     * 主に「entries は最新だが hotbarEntryCache が古い」ケース（ログイン直後の非同期ロード後など）で、
+     * findNextHotbarSlot / upsertHotbarEntry / renderHotbarInventory が古いキャッシュを見て
+     * 既存スロットを上書きしたり描画が空になったりする問題を防ぐために呼び出します。
+     *
+     * @param accountId 対象アカウントID
+     */
+    private void rebuildHotbarEntryCache(@NotNull UUID accountId) {
+        InventoryModel hotbar = getCachedInventories(accountId).stream()
+            .filter(this::isDefaultProfile)
+            .filter(inv -> inv.getInventoryType() == InventoryType.HOTBAR)
+            .findFirst()
+            .orElse(null);
+        if (hotbar == null) {
+            return;
+        }
+        cacheHotbarEntries(accountId, getCachedEntries(hotbar.getInventoryId()));
     }
 
     /**
@@ -468,7 +1025,7 @@ public class InventoryService {
             HotbarLayout.CAPACITY,
             accountId
         );
-        cacheHotbarEntries(accountId, inventoryRepository.findEntries(inventory.getInventoryId()));
+        cacheHotbarEntries(accountId, getEntries(inventory.getInventoryId()));
     }
 
     /**
@@ -505,7 +1062,9 @@ public class InventoryService {
         }
 
         selectedHotbarSlots.put(accountId, hotbarSlotIndex);
-        astPlayer.getBukkit().getInventory().setHeldItemSlot(HotbarLayout.toBukkitSlot(hotbarSlotIndex));
+        if (HotbarLayout.isMainHotbarSlot(hotbarSlotIndex)) {
+            astPlayer.getBukkit().getInventory().setHeldItemSlot(HotbarLayout.toBukkitSlot(hotbarSlotIndex));
+        }
         renderHotbarInventory(astPlayer);
         return true;
     }
@@ -604,9 +1163,11 @@ public class InventoryService {
         inventory.setItem(sourceBukkitSlot, emptyToAir(previous));
 
         removeDisplayedEntryAtBukkitSlot(astPlayer, sourceBukkitSlot);
+        compactDisplayedInventory(astPlayer);
         saveDisplayedStorageSnapshotIfNormal(astPlayer);
         saveEquipSlotSnapshot(astPlayer);
         syncCurrentEquipmentState(astPlayer);
+        applyDisplayedInventoryToGui(astPlayer);
         astPlayer.getBukkit().updateInventory();
         return true;
     }
@@ -636,8 +1197,10 @@ public class InventoryService {
         }
 
         removeDisplayedEntryAtBukkitSlot(astPlayer, sourceBukkitSlot);
+        compactDisplayedInventory(astPlayer);
         saveDisplayedStorageSnapshotIfNormal(astPlayer);
         syncCurrentEquipmentState(astPlayer);
+        applyDisplayedInventoryToGui(astPlayer);
         astPlayer.getBukkit().updateInventory();
         return true;
     }
@@ -658,17 +1221,38 @@ public class InventoryService {
 
         upsertHotbarEntry(astPlayer, sourceEntry, targetDbSlot);
         deleteDisplayedEntryAtBukkitSlot(astPlayer, sourceBukkitSlot);
+        compactDisplayedInventory(astPlayer);
         applyDisplayedInventoryToGui(astPlayer);
         renderHotbarInventory(astPlayer);
         return true;
     }
 
+    /**
+     * 現在表示中のインベントリの entry を slot_index 1, 2, 3, ... へ詰め直します。
+     *
+     * @param astPlayer 対象プレイヤー
+     */
+    private void compactDisplayedInventory(@NotNull AstPlayer astPlayer) {
+        UUID accountId = astPlayer.getAccount().getUuid();
+        InventoryType displayedType = getDisplayedInventoryType(accountId);
+        inventoryRepository.findByAccountId(accountId).stream()
+            .filter(this::isDefaultProfile)
+            .filter(inv -> inv.getInventoryType() == displayedType)
+            .findFirst()
+            .ifPresent(inventory -> compactInventoryEntries(inventory.getInventoryId(), accountId));
+    }
+
     private int findNextHotbarSlot(@NotNull UUID accountId) {
+        rebuildHotbarEntryCache(accountId);
         Map<Integer, InventoryEntryModel> entries = hotbarEntryCache.computeIfAbsent(accountId, key -> new ConcurrentHashMap<>());
         for (int slot = HotbarLayout.DB_SLOT_START; slot <= HotbarLayout.DB_SLOT_END; slot++) {
             if (!entries.containsKey(slot)) {
                 return slot;
             }
+        }
+        // 未選択時、ホットバー本体（1〜9）が満杯ならオフハンド（slot 10）へフォールバック
+        if (!entries.containsKey(HotbarLayout.DB_SLOT_OFFHAND)) {
+            return HotbarLayout.DB_SLOT_OFFHAND;
         }
         return -1;
     }
@@ -687,11 +1271,12 @@ public class InventoryService {
     ) {
         var accountId = astPlayer.getAccount().getUuid();
         var hotbarInventory = ensureInventory(accountId, InventoryType.HOTBAR, HotbarLayout.CAPACITY, accountId);
+        rebuildHotbarEntryCache(accountId);
         Map<Integer, InventoryEntryModel> cachedEntries = hotbarEntryCache.computeIfAbsent(accountId, key -> new ConcurrentHashMap<>());
         InventoryEntryModel existing = cachedEntries.get(targetDbSlot);
         InventoryEntryDraft draft = copyEntryDraft(sourceEntry, targetDbSlot);
         InventoryEntryModel saved = existing != null
-            ? inventoryRepository.updateEntry(existing.getInventoryEntryId(), draft, accountId)
+            ? updateEntryOptimistically(existing.getInventoryEntryId(), draft, accountId)
             : addEntry(hotbarInventory.getInventoryId(), draft, accountId);
         cachedEntries.put(targetDbSlot, saved);
     }
@@ -722,12 +1307,13 @@ public class InventoryService {
             .findFirst()
             .orElse(null);
         if (reusable != null) {
-            inventoryRepository.updateEntry(reusable.getInventoryEntryId(), copyEntryDraft(hotbarEntry, targetSlot), accountId);
+            updateEntryOptimistically(reusable.getInventoryEntryId(), copyEntryDraft(hotbarEntry, targetSlot), accountId);
         } else {
             addEntry(targetInventory.getInventoryId(), copyEntryDraft(hotbarEntry, targetSlot), accountId);
         }
 
-        inventoryRepository.deleteEntry(hotbarEntry.getInventoryEntryId(), accountId);
+        deleteEntryOptimistically(hotbarEntry.getInventoryEntryId(), accountId);
+        rebuildHotbarEntryCache(accountId);
         Map<Integer, InventoryEntryModel> cachedEntries = hotbarEntryCache.computeIfAbsent(accountId, key -> new ConcurrentHashMap<>());
         if (hotbarEntry.getSlotIndex() != null) {
             cachedEntries.remove(hotbarEntry.getSlotIndex());
@@ -746,6 +1332,7 @@ public class InventoryService {
      * @return キャッシュ済み entry。未設定の場合は null
      */
     private @Nullable InventoryEntryModel getCachedHotbarEntry(@NotNull UUID accountId, int hotbarSlotIndex) {
+        rebuildHotbarEntryCache(accountId);
         Map<Integer, InventoryEntryModel> entries = hotbarEntryCache.computeIfAbsent(accountId, key -> new ConcurrentHashMap<>());
         return entries.get(hotbarSlotIndex);
     }
@@ -772,11 +1359,77 @@ public class InventoryService {
      *
      * @param astPlayer 対象プレイヤー
      */
+    /**
+     * GUI（プレイヤーインベントリ）が開いている間、ホットバーを
+     * インベントリ選択ショートカット＋閉じるボタン表示へ切り替えます。
+     *
+     * @param astPlayer 対象プレイヤー
+     * @param on true で切替 ON、false で OFF
+     */
+    public void setHotbarShortcutMode(@NotNull AstPlayer astPlayer, boolean on) {
+        UUID accountId = astPlayer.getAccount().getUuid();
+        boolean changed = on
+            ? hotbarShortcutMode.add(accountId)
+            : hotbarShortcutMode.remove(accountId);
+        if (!changed) {
+            return;
+        }
+        renderHotbarInventory(astPlayer);
+    }
+
+    /**
+     * プレイヤーが現在ホットバーショートカットモードかどうかを返します。
+     *
+     * @param astPlayer 対象プレイヤー
+     * @return ショートカットモード中なら true
+     */
+    public boolean isHotbarShortcutMode(@NotNull AstPlayer astPlayer) {
+        return hotbarShortcutMode.contains(astPlayer.getAccount().getUuid());
+    }
+
+    /**
+     * ホットバーショートカットモード中のホットバースロットクリックを処理します。
+     * <p>
+     * 各スロットの割当: 0=NORMAL, 1=EQUIPMENT, 2=RUNE, 3=CURRENCY, 8=CLOSE。
+     *
+     * @param astPlayer 対象プレイヤー
+     * @param bukkitSlot Bukkit storage 側のスロット番号（0〜8）
+     * @return クリックを処理した場合 true
+     */
+    public boolean handleHotbarShortcutClick(@NotNull AstPlayer astPlayer, int bukkitSlot) {
+        if (!isHotbarShortcutMode(astPlayer)) {
+            return false;
+        }
+        InventoryType target = switch (bukkitSlot) {
+            case 0 -> InventoryType.NORMAL;
+            case 1 -> InventoryType.EQUIPMENT;
+            case 2 -> InventoryType.RUNE;
+            case 3 -> InventoryType.CURRENCY;
+            default -> null;
+        };
+        if (target != null) {
+            applyInventoryToGui(astPlayer, target);
+            return true;
+        }
+        if (bukkitSlot == 8) {
+            astPlayer.getBukkit().closeInventory();
+            return true;
+        }
+        return false;
+    }
+
     private void renderHotbarInventory(@NotNull AstPlayer astPlayer) {
+        if (isHotbarShortcutMode(astPlayer)) {
+            renderHotbarShortcutIcons(astPlayer);
+            return;
+        }
         var accountId = astPlayer.getAccount().getUuid();
+        rebuildHotbarEntryCache(accountId);
         Map<Integer, InventoryEntryModel> entries = hotbarEntryCache.computeIfAbsent(accountId, key -> new ConcurrentHashMap<>());
         Integer selectedSlot = selectedHotbarSlots.get(accountId);
         PlayerInventory inventory = astPlayer.getBukkit().getInventory();
+        boolean changed = false;
+        // ホットバー本体（1〜9） → Bukkit storage 0〜8
         for (int dbSlot = HotbarLayout.DB_SLOT_START; dbSlot <= HotbarLayout.DB_SLOT_END; dbSlot++) {
             InventoryEntryModel entry = entries.get(dbSlot);
             ItemStack itemStack = entry == null ? createHotbarDummyItem(dbSlot) : itemStackResolver.resolve(entry);
@@ -786,22 +1439,134 @@ public class InventoryService {
             if (selectedSlot != null && selectedSlot == dbSlot) {
                 itemStack = withSelectionGlow(itemStack);
             }
-            setStorageItemIfChanged(inventory, HotbarLayout.toBukkitSlot(dbSlot), itemStack);
+            changed |= setStorageItemIfChanged(inventory, HotbarLayout.toBukkitSlot(dbSlot), itemStack);
         }
-        astPlayer.getBukkit().updateInventory();
+        // オフハンド（slot 10） → Bukkit offhand
+        InventoryEntryModel offhandEntry = entries.get(HotbarLayout.DB_SLOT_OFFHAND);
+        ItemStack offhandStack = offhandEntry == null
+            ? createHotbarDummyItem(HotbarLayout.DB_SLOT_OFFHAND)
+            : itemStackResolver.resolve(offhandEntry);
+        if (offhandStack == null || offhandStack.getType() == Material.AIR) {
+            offhandStack = createHotbarDummyItem(HotbarLayout.DB_SLOT_OFFHAND);
+        }
+        if (selectedSlot != null && selectedSlot == HotbarLayout.DB_SLOT_OFFHAND) {
+            offhandStack = withSelectionGlow(offhandStack);
+        }
+        ItemStack currentOffhand = inventory.getItemInOffHand();
+        if (!isSameItemStack(currentOffhand, offhandStack)) {
+            inventory.setItemInOffHand(offhandStack);
+            changed = true;
+        }
+        if (changed) {
+            astPlayer.getBukkit().updateInventory();
+        }
+    }
+
+    /**
+     * GUI 中ホットバーへインベントリ選択ショートカット＋閉じるボタンを描画します。
+     *
+     * @param astPlayer 対象プレイヤー
+     */
+    private void renderHotbarShortcutIcons(@NotNull AstPlayer astPlayer) {
+        UUID accountId = astPlayer.getAccount().getUuid();
+        InventoryType displayed = getDisplayedInventoryType(accountId);
+        PlayerInventory inventory = astPlayer.getBukkit().getInventory();
+        boolean changed = false;
+
+        changed |= setStorageItemIfChanged(inventory, 0, createInventoryShortcutIcon(InventoryType.NORMAL, Material.CHEST, displayed));
+        changed |= setStorageItemIfChanged(inventory, 1, createInventoryShortcutIcon(InventoryType.EQUIPMENT, Material.NETHERITE_CHESTPLATE, displayed));
+        changed |= setStorageItemIfChanged(inventory, 2, createInventoryShortcutIcon(InventoryType.RUNE, Material.AMETHYST_SHARD, displayed));
+        changed |= setStorageItemIfChanged(inventory, 3, createInventoryShortcutIcon(InventoryType.CURRENCY, Material.GOLD_INGOT, displayed));
+        for (int i = 4; i <= 7; i++) {
+            changed |= setStorageItemIfChanged(inventory, i, createHotbarSpacerIcon());
+        }
+        changed |= setStorageItemIfChanged(inventory, 8, createCloseShortcutIcon());
+
+        // オフハンドはダミー（ショートカット非対象）
+        ItemStack offhandDummy = createHotbarDummyItem(HotbarLayout.DB_SLOT_OFFHAND);
+        if (!isSameItemStack(inventory.getItemInOffHand(), offhandDummy)) {
+            inventory.setItemInOffHand(offhandDummy);
+            changed = true;
+        }
+        if (changed) {
+            astPlayer.getBukkit().updateInventory();
+        }
+    }
+
+    /**
+     * インベントリ選択ショートカットの ItemStack を生成します。
+     *
+     * @param type 対象 InventoryType
+     * @param material 表示マテリアル
+     * @param currentDisplayed 現在表示中の種別（一致時に発光）
+     * @return ショートカット用 ItemStack
+     */
+    private @NotNull ItemStack createInventoryShortcutIcon(
+        @NotNull InventoryType type,
+        @NotNull Material material,
+        @NotNull InventoryType currentDisplayed
+    ) {
+        ItemStack itemStack = new ItemStack(material);
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Component.text(ColorCodeUtil.YELLOW + type.getDisplayNameJa()));
+            meta.lore(List.of(Component.text(ColorCodeUtil.GRAY + "クリックして表示")));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            itemStack.setItemMeta(meta);
+        }
+        if (type == currentDisplayed) {
+            return withSelectionGlow(itemStack);
+        }
+        return itemStack;
+    }
+
+    /**
+     * ホットバーショートカットの空白スロット用アイテムを生成します。
+     *
+     * @return 空白表示 ItemStack
+     */
+    private @NotNull ItemStack createHotbarSpacerIcon() {
+        ItemStack itemStack = new ItemStack(Material.LIGHT_GRAY_STAINED_GLASS_PANE);
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Component.text(" "));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            itemStack.setItemMeta(meta);
+        }
+        return itemStack;
+    }
+
+    /**
+     * 閉じるショートカットの ItemStack を生成します。
+     *
+     * @return 閉じる用 ItemStack
+     */
+    private @NotNull ItemStack createCloseShortcutIcon() {
+        ItemStack itemStack = new ItemStack(Material.BARRIER);
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Component.text(ColorCodeUtil.RED + "閉じる"));
+            meta.lore(List.of(Component.text(ColorCodeUtil.GRAY + "GUI を閉じる")));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            itemStack.setItemMeta(meta);
+        }
+        return itemStack;
     }
 
     /**
      * 未設定ホットバースロット用のダミー ItemStack を生成します。
      *
-     * @param dbSlot HOTBAR の DB slot_index（1〜9）
+     * @param dbSlot HOTBAR の DB slot_index（1〜9 = ホットバー本体, 10 = オフハンド）
      * @return 表示用ダミー ItemStack
      */
     private @NotNull ItemStack createHotbarDummyItem(int dbSlot) {
         ItemStack itemStack = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
-            meta.displayName(Component.text(ColorCodeUtil.GRAY + "ホットバースロット[" + dbSlot + "]"));
+            String label = HotbarLayout.isOffhandSlot(dbSlot)
+                ? ColorCodeUtil.GRAY + "オフハンドスロット"
+                : ColorCodeUtil.GRAY + "ホットバースロット[" + dbSlot + "]";
+            meta.displayName(Component.text(label));
             meta.lore(List.of(Component.text(ColorCodeUtil.GRAY + "アイテム未選択")));
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
             itemStack.setItemMeta(meta);
@@ -863,14 +1628,14 @@ public class InventoryService {
         InventoryType displayedType = getDisplayedInventoryType(accountId);
         int dbSlot = NormalInventoryLayout.toDbSlotIndex(sourceBukkitSlot);
 
-        inventoryRepository.findByAccountId(accountId).stream()
+        getInventories(accountId).stream()
             .filter(this::isDefaultProfile)
             .filter(inventory -> inventory.getInventoryType() == displayedType)
             .findFirst()
-            .ifPresent(inventory -> inventoryRepository.findEntries(inventory.getInventoryId()).stream()
+            .ifPresent(inventory -> getEntries(inventory.getInventoryId()).stream()
                 .filter(entry -> entry.getSlotIndex() != null && entry.getSlotIndex() == dbSlot && !entry.isDeleted())
                 .findFirst()
-                .ifPresent(entry -> inventoryRepository.updateEntry(
+                .ifPresent(entry -> updateEntryOptimistically(
                     entry.getInventoryEntryId(),
                     new InventoryEntryDraft(
                         null,
@@ -904,11 +1669,11 @@ public class InventoryService {
         InventoryType displayedType = getDisplayedInventoryType(accountId);
         int dbSlot = NormalInventoryLayout.toDbSlotIndex(sourceBukkitSlot);
 
-        return inventoryRepository.findByAccountId(accountId).stream()
+        return getInventories(accountId).stream()
             .filter(this::isDefaultProfile)
             .filter(inventory -> inventory.getInventoryType() == displayedType)
             .findFirst()
-            .flatMap(inventory -> inventoryRepository.findEntries(inventory.getInventoryId()).stream()
+            .flatMap(inventory -> getEntries(inventory.getInventoryId()).stream()
                 .filter(entry -> entry.getSlotIndex() != null && entry.getSlotIndex() == dbSlot && !entry.isDeleted())
                 .findFirst())
             .orElse(null);
@@ -923,7 +1688,7 @@ public class InventoryService {
     private void deleteDisplayedEntryAtBukkitSlot(@NotNull AstPlayer astPlayer, int sourceBukkitSlot) {
         InventoryEntryModel entry = findDisplayedEntryAtBukkitSlot(astPlayer, sourceBukkitSlot);
         if (entry != null) {
-            inventoryRepository.deleteEntry(entry.getInventoryEntryId(), astPlayer.getAccount().getUuid());
+            deleteEntryOptimistically(entry.getInventoryEntryId(), astPlayer.getAccount().getUuid());
         }
     }
 
@@ -935,7 +1700,7 @@ public class InventoryService {
     private void applyDisplayedInventoryToGui(@NotNull AstPlayer astPlayer) {
         UUID accountId = astPlayer.getAccount().getUuid();
         InventoryType displayedType = getDisplayedInventoryType(accountId);
-        InventoryModel inventory = inventoryRepository.findByAccountId(accountId).stream()
+        InventoryModel inventory = getInventories(accountId).stream()
             .filter(this::isDefaultProfile)
             .filter(inv -> inv.getInventoryType() == displayedType)
             .findFirst()
@@ -1070,7 +1835,7 @@ public class InventoryService {
         equipSnapshot[EquipSlotLayout.SLOT_LEGS] = itemOrAir(legs);
         equipSnapshot[EquipSlotLayout.SLOT_FEET] = itemOrAir(feet);
         var equipInventory = ensureInventory(accountId, InventoryType.EQUIP_SLOT, EquipSlotLayout.SLOT_MAX, accountId);
-        inventoryRepository.updateMetadata(equipInventory.getInventoryId(), snapshotCodec.encode(equipSnapshot), accountId);
+        updateMetadataAsync(equipInventory.getInventoryId(), snapshotCodec.encode(equipSnapshot), accountId);
 
         syncActiveEquipmentLoadout(
             accountId,
@@ -1133,21 +1898,40 @@ public class InventoryService {
         @Nullable ItemStack accessory6,
         @Nullable ItemStack accessory7
     ) {
-        EquipmentLoadoutModel loadout = ensureActiveEquipmentLoadout(accountId);
-        if (loadout == null) {
-            return;
-        }
-        syncLoadoutSlot(loadout, SLOT_TYPE_HEAD, 0, head, accountId);
-        syncLoadoutSlot(loadout, SLOT_TYPE_CHEST, 0, chest, accountId);
-        syncLoadoutSlot(loadout, SLOT_TYPE_LEGS, 0, legs, accountId);
-        syncLoadoutSlot(loadout, SLOT_TYPE_FEET, 0, feet, accountId);
-        syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 0, offHand, accountId);
-        syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 1, accessory2, accountId);
-        syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 2, accessory3, accountId);
-        syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 3, accessory4, accountId);
-        syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 4, accessory5, accountId);
-        syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 5, accessory6, accountId);
-        syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 6, accessory7, accountId);
+        ItemStack headSnapshot = cloneItemStack(head);
+        ItemStack chestSnapshot = cloneItemStack(chest);
+        ItemStack legsSnapshot = cloneItemStack(legs);
+        ItemStack feetSnapshot = cloneItemStack(feet);
+        ItemStack offHandSnapshot = cloneItemStack(offHand);
+        ItemStack accessory2Snapshot = cloneItemStack(accessory2);
+        ItemStack accessory3Snapshot = cloneItemStack(accessory3);
+        ItemStack accessory4Snapshot = cloneItemStack(accessory4);
+        ItemStack accessory5Snapshot = cloneItemStack(accessory5);
+        ItemStack accessory6Snapshot = cloneItemStack(accessory6);
+        ItemStack accessory7Snapshot = cloneItemStack(accessory7);
+
+        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            EquipmentLoadoutModel loadout = ensureActiveEquipmentLoadout(accountId);
+            if (loadout == null) {
+                return;
+            }
+            syncLoadoutSlot(loadout, SLOT_TYPE_HEAD, 0, headSnapshot, accountId);
+            syncLoadoutSlot(loadout, SLOT_TYPE_CHEST, 0, chestSnapshot, accountId);
+            syncLoadoutSlot(loadout, SLOT_TYPE_LEGS, 0, legsSnapshot, accountId);
+            syncLoadoutSlot(loadout, SLOT_TYPE_FEET, 0, feetSnapshot, accountId);
+            syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 0, offHandSnapshot, accountId);
+            syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 1, accessory2Snapshot, accountId);
+            syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 2, accessory3Snapshot, accountId);
+            syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 3, accessory4Snapshot, accountId);
+            syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 4, accessory5Snapshot, accountId);
+            syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 5, accessory6Snapshot, accountId);
+            syncLoadoutSlot(loadout, SLOT_TYPE_ACCESSORY, 6, accessory7Snapshot, accountId);
+        });
+        trackWriteTask(future);
+    }
+
+    private @Nullable ItemStack cloneItemStack(@Nullable ItemStack itemStack) {
+        return itemStack == null ? null : itemStack.clone();
     }
 
     private void syncLoadoutSlot(
@@ -1471,14 +2255,16 @@ public class InventoryService {
                 break;
             }
 
-            UUID instanceId = createInstanceId(model, accountId, instanceType);
-            if (instanceId == null) {
-                break;
-            }
-
-            addEntry(
+            createEntryOptimistically(
                 inventory.getInventoryId(),
-                new InventoryEntryDraft(slot, model.getCategory(), null, instanceType.getCode(), instanceId, 1L, null),
+                new InventoryEntryDraft(slot, model.getCategory(), model.getId(), null, null, 1L, null),
+                () -> {
+                    UUID instanceId = createInstanceId(model, accountId, instanceType);
+                    if (instanceId == null) {
+                        throw new IllegalStateException("Failed to create inventory item instance.");
+                    }
+                    return new InventoryEntryDraft(slot, model.getCategory(), null, instanceType.getCode(), instanceId, 1L, null);
+                },
                 accountId
             );
             usedSlots.add(slot);
@@ -1516,7 +2302,7 @@ public class InventoryService {
             }
 
             int addAmount = (int) Math.min(room, remaining);
-            inventoryRepository.updateEntry(
+            updateEntryOptimistically(
                 entry.getInventoryEntryId(),
                 new InventoryEntryDraft(
                     entry.getSlotIndex(),
@@ -1661,7 +2447,7 @@ public class InventoryService {
      * @param bukkitSlot Bukkit storage slot
      * @param itemStack 設定したい ItemStack
      */
-    private void setStorageItemIfChanged(
+    private boolean setStorageItemIfChanged(
         @NotNull PlayerInventory inventory,
         int bukkitSlot,
         @Nullable ItemStack itemStack
@@ -1669,9 +2455,10 @@ public class InventoryService {
         ItemStack next = itemOrAir(itemStack);
         ItemStack current = inventory.getItem(bukkitSlot);
         if (isSameItemStack(current, next)) {
-            return;
+            return false;
         }
         inventory.setItem(bukkitSlot, next);
+        return true;
     }
 
     /**
@@ -1720,5 +2507,161 @@ public class InventoryService {
 
     private @Nullable Integer resolveSlotCapacity(@NotNull InventoryType inventoryType) {
         return inventoryType.isSlotted() ? NormalInventoryLayout.CAPACITY : null;
+    }
+
+    // ---------------------------------------------------------------
+    // 共通: アイテム返却 + 表示インベントリ自動切替 + スロット詰め
+    // ---------------------------------------------------------------
+
+    /**
+     * 既存インスタンスや通常アイテムを所有インベントリへ戻し、
+     * 必要であれば表示インベントリ種別を返却先カテゴリへ自動切替します。
+     * <p>
+     * 装備 GUI / 防具スロット / アクセサリスロットなど、Bukkit 上の管理スロットから
+     * AstralRecord 管理対象のインベントリへアイテムを戻す操作で共通的に利用してください。
+     * 既存の equipment_instance / rune_instance を保持したまま entry を再作成します。
+     *
+     * @param astPlayer 対象プレイヤー
+     * @param itemStack 戻すアイテム（既存インスタンスを参照）
+     * @return 戻し先インベントリ種別。戻せなかった場合は null
+     */
+    public @Nullable InventoryType returnItemToOwnedInventory(
+        @NotNull AstPlayer astPlayer,
+        @Nullable ItemStack itemStack
+    ) {
+        if (itemStack == null || itemStack.getType() == Material.AIR) {
+            return null;
+        }
+        String itemId = ItemStackFactory.getAstralItemId(itemStack);
+        String categoryCode = ItemStackFactory.getCategory(itemStack);
+        if (itemId == null || categoryCode == null) {
+            return null;
+        }
+        ItemModel model = resolveItemModel(itemId);
+        if (model == null) {
+            return null;
+        }
+
+        ItemCategory category = ItemCategory.fromApiValue(categoryCode);
+        InventoryType targetType = resolveTargetInventoryType(model);
+        UUID accountId = astPlayer.getAccount().getUuid();
+        InventoryModel targetInventory = ensureInventory(accountId, targetType, resolveSlotCapacity(targetType), accountId);
+
+        boolean added = switch (category) {
+            case EQUIPMENT -> addExistingInstanceEntry(
+                targetInventory,
+                accountId,
+                model,
+                InventoryInstanceType.EQUIPMENT,
+                ItemStackFactory.getEquipmentInstanceId(itemStack)
+            );
+            case RUNE -> addExistingInstanceEntry(
+                targetInventory,
+                accountId,
+                model,
+                InventoryInstanceType.RUNE,
+                ItemStackFactory.getRuneInstanceId(itemStack)
+            );
+            default -> {
+                int amount = Math.max(1, itemStack.getAmount());
+                Set<Integer> usedSlots = NormalInventoryLayout.collectUsedSlots(getEntries(targetInventory.getInventoryId()));
+                yield addStackedItems(targetInventory, model, amount, usedSlots, accountId) > 0;
+            }
+        };
+        if (!added) {
+            return null;
+        }
+
+        compactInventoryEntries(targetInventory.getInventoryId(), accountId);
+        autoSwitchDisplayedInventory(astPlayer, targetType);
+        return targetType;
+    }
+
+    /**
+     * 表示インベントリが指定種別と異なる場合、自動的に対象種別へ切り替えます。
+     * 切替条件は {@link io.github.maaasu.astralRecord.feature.account.model.AccountMode#shouldReflectInventoryToGui()} を満たす場合のみ。
+     *
+     * @param astPlayer 対象プレイヤー
+     * @param targetType 切替先インベントリ種別
+     */
+    private void autoSwitchDisplayedInventory(@NotNull AstPlayer astPlayer, @NotNull InventoryType targetType) {
+        if (!astPlayer.getAccount().getMode().shouldReflectInventoryToGui()) {
+            return;
+        }
+        UUID accountId = astPlayer.getAccount().getUuid();
+        if (getDisplayedInventoryType(accountId) == targetType) {
+            applyDisplayedInventoryToGui(astPlayer);
+            return;
+        }
+        applyInventoryToGui(astPlayer, targetType);
+    }
+
+    /**
+     * 既存インスタンスを参照する entry を空きスロットへ追加します。
+     *
+     * @param inventory 追加先インベントリ
+     * @param accountId 操作アカウントID
+     * @param model 元 ItemModel（ログ・カテゴリ取得用）
+     * @param instanceType インスタンス種別
+     * @param instanceIdValue 既存インスタンスID（UUID 文字列）
+     * @return 追加できた場合 true
+     */
+    private boolean addExistingInstanceEntry(
+        @NotNull InventoryModel inventory,
+        @NotNull UUID accountId,
+        @NotNull ItemModel model,
+        @NotNull InventoryInstanceType instanceType,
+        @Nullable String instanceIdValue
+    ) {
+        UUID instanceId = instanceIdValue == null ? null : parseUuidOrNull(instanceIdValue);
+        if (instanceId == null) {
+            return false;
+        }
+        Set<Integer> usedSlots = NormalInventoryLayout.collectUsedSlots(getEntries(inventory.getInventoryId()));
+        Integer slot = NormalInventoryLayout.findNextFreeSlot(usedSlots);
+        if (slot == null) {
+            return false;
+        }
+        addEntry(
+            inventory.getInventoryId(),
+            new InventoryEntryDraft(slot, model.getCategory(), null, instanceType.getCode(), instanceId, 1L, null),
+            accountId
+        );
+        return true;
+    }
+
+    /**
+     * 指定インベントリの entry を slot_index 1, 2, 3, ... の連続値に詰め直します。
+     * <p>
+     * slot_index が null の entry は既存スロットの後ろへ並べ替え、最終的に管理範囲内で歯抜けを解消します。
+     *
+     * @param inventoryId 対象インベントリID
+     * @param accountId 操作アカウントID
+     */
+    public void compactInventoryEntries(@NotNull UUID inventoryId, @NotNull UUID accountId) {
+        List<InventoryEntryModel> entries = getEntries(inventoryId).stream()
+            .filter(entry -> !entry.isDeleted())
+            .sorted(java.util.Comparator.<InventoryEntryModel, Integer>comparing(
+                entry -> entry.getSlotIndex() == null ? Integer.MAX_VALUE : entry.getSlotIndex()
+            ).thenComparing(InventoryEntryModel::getCreatedAt))
+            .toList();
+
+        int next = NormalInventoryLayout.DB_SLOT_START;
+        for (InventoryEntryModel entry : entries) {
+            if (next > NormalInventoryLayout.DB_SLOT_END) {
+                break;
+            }
+            Integer current = entry.getSlotIndex();
+            if (current != null && current == next) {
+                next++;
+                continue;
+            }
+            updateEntryOptimistically(
+                entry.getInventoryEntryId(),
+                copyEntryDraft(entry, next),
+                accountId
+            );
+            next++;
+        }
     }
 }

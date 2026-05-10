@@ -93,8 +93,25 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
         runSafely(() -> {
             if (event.getPlayer() instanceof Player player) {
                 scheduleCraftShortcutRender(player);
+                applyHotbarShortcutMode(player, event.getView().getType());
             }
         }, LogId.E_5600, event.getPlayer().getName());
+    }
+
+    /**
+     * 開いたビューがプレイヤー自身のクラフトインベントリの場合、ホットバーをショートカット表示モードへ切り替えます。
+     *
+     * @param player 対象プレイヤー
+     * @param viewType 開いたビューの種別
+     */
+    private void applyHotbarShortcutMode(@NotNull Player player, @NotNull org.bukkit.event.inventory.InventoryType viewType) {
+        AstPlayer astPlayer = AstPlayerCache.get(player);
+        if (astPlayer == null || !astPlayer.getAccount().getMode().shouldReflectInventoryToGui())
+            return;
+
+        if (viewType == org.bukkit.event.inventory.InventoryType.CRAFTING) {
+            inventoryService.setHotbarShortcutMode(astPlayer, true);
+        }
     }
 
     /**
@@ -107,11 +124,14 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
         runSafely(() -> {
             if (event.getInventory() instanceof CraftingInventory inventory) {
                 menuView.clearCraftShortcuts(inventory);
-                if (event.getPlayer() instanceof Player player) {
+                if (event.getPlayer() instanceof Player player)
                     menuView.removeCraftShortcutItems(player);
-                }
+
             }
             if (event.getPlayer() instanceof Player player) {
+                AstPlayer astPlayer = AstPlayerCache.get(player);
+                if (astPlayer != null)
+                    inventoryService.setHotbarShortcutMode(astPlayer, false);
                 scheduleCraftShortcutRender(player);
             }
         }, LogId.E_5600, event.getPlayer().getName());
@@ -143,19 +163,25 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
                 if (menuView.getMenuScreen(event.getView().getTopInventory()) == MenuScreen.EQUIPMENT_GUI) {
                     return;
                 }
-                event.setCancelled(true);
                 handleMenuClick(event);
+                return;
+            }
+
+            if (!(event.getWhoClicked() instanceof Player player) || !isPlayerMode(player)) {
+                return;
+            }
+
+            // クラフト枠ショートカットがホットバー入れ替え（NUMBER_KEY）やオフハンド入れ替えで
+            // プレイヤーインベントリの実アイテムと交換されないよう、対象スロットへのスワップ系操作は抑止する。
+            if (isCraftSlotSwapAttempt(event)) {
+                GuiSound.DENY.play(player);
                 return;
             }
 
             if (!isCraftMenuClick(event)) {
                 return;
             }
-            if (!(event.getWhoClicked() instanceof Player player) || !isPlayerMode(player)) {
-                return;
-            }
 
-            event.setCancelled(true);
             if (event.getRawSlot() == MenuView.CRAFT_RESULT_RAW_SLOT) {
                 GuiSound.OPEN.play(player);
                 openMainMenu(player);
@@ -171,6 +197,28 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
     }
 
     /**
+     * クラフト枠（成果物・ショートカット枠）に対するホットバー入れ替え系操作かを判定します。
+     * NUMBER_KEY・SWAP_OFFHAND など、対象スロットの中身を別スロットへ移動する操作を対象とします。
+     *
+     * @param event インベントリクリックイベント
+     * @return クラフト枠への入れ替え系操作なら true
+     */
+    private boolean isCraftSlotSwapAttempt(@NotNull InventoryClickEvent event) {
+        if (event.getView().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING)
+            return false;
+
+        int rawSlot = event.getRawSlot();
+        if (rawSlot < MenuView.CRAFT_RESULT_RAW_SLOT
+            || rawSlot >= MenuView.CRAFT_RESULT_RAW_SLOT + craftMenuSlotCount())
+            return false;
+
+        return switch (event.getClick()) {
+            case NUMBER_KEY, SWAP_OFFHAND -> true;
+            default -> false;
+        };
+    }
+
+    /**
      * メニュー画面内やショートカットクラフト欄へのドラッグ操作を抑止します。
      *
      * @param event インベントリドラッグイベント
@@ -179,7 +227,6 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
     public void onInventoryDrag(InventoryDragEvent event) {
         runSafely(() -> {
             if (menuView.isMenuInventory(event.getView().getTopInventory())) {
-                event.setCancelled(true);
                 if (event.getWhoClicked() instanceof Player player) {
                     GuiSound.DENY.play(player);
                 }
@@ -192,7 +239,6 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
             for (int rawSlot : event.getRawSlots()) {
                 if (rawSlot >= MenuView.CRAFT_RESULT_RAW_SLOT
                     && rawSlot < MenuView.CRAFT_RESULT_RAW_SLOT + craftMenuSlotCount()) {
-                    event.setCancelled(true);
                     scheduleCraftShortcutRender(player);
                     return;
                 }

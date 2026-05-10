@@ -288,6 +288,10 @@ public enum LogId {
      */
     W_1600(1600),
     /**
+     * AstralRecord API の SSL 証明書検証が無効です。本番環境では有効化してください
+     */
+    W_1601(1601),
+    /**
      * AstralRecord API の疎通確認に失敗しました: %s
      */
     E_1600(1600),
@@ -437,10 +441,6 @@ public enum LogId {
     // endregion
 
     // region /feature/item/repository/ItemRepository.kt /feature/item/service/ItemService.java
-    /**
-     * アイテムを取得しました (API): カテゴリ=%s, ID=%s
-     */
-    D_5200(5200),
     /**
      * アイテムを使用しました: プレイヤー=%s, アイテム=%s, 適用=%d, スキップ=%d
      */

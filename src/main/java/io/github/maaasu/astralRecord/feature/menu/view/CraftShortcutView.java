@@ -35,8 +35,8 @@ final class CraftShortcutView {
 
     @NotNull ItemStack createCraftResultIcon() {
         ItemStack itemStack = createItem(
-            Material.NETHER_STAR,
-            Component.text("メニュー", NamedTextColor.AQUA),
+            Material.KNOWLEDGE_BOOK,
+            Component.text("メニュー", NamedTextColor.GREEN),
             List.of(Component.text("クリックしてメニューを開く", NamedTextColor.GRAY))
         );
         markCraftShortcutIcon(itemStack, -1, MenuShortcutAction.MAIN_MENU);

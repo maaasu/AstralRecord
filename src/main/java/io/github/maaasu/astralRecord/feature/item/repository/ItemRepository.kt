@@ -138,11 +138,7 @@ class ItemRepository {
                     .build()
                 val response = client.send(request, HttpResponse.BodyHandlers.ofString())
                 return when (response.statusCode()) {
-                    200, 201 -> {
-                        val instance = parseEquipmentInstance(response.body())
-                        Logger.log(LogId.D_5200, "equipment", equipmentId)
-                        instance
-                    }
+                    200, 201 -> parseEquipmentInstance(response.body())
                     else -> {
                         Logger.log(LogId.E_5200, "HTTP ${response.statusCode()} for POST $path")
                         throw IOException("Unexpected status ${response.statusCode()} for POST $path")
@@ -171,11 +167,7 @@ class ItemRepository {
                 val request = ApiRequestUtil.buildRequestBuilder(path).GET().build()
                 val response = client.send(request, HttpResponse.BodyHandlers.ofString())
                 return when (response.statusCode()) {
-                    200 -> {
-                        val instance = parseEquipmentInstance(response.body())
-                        Logger.log(LogId.D_5200, "equipment", instanceId)
-                        instance
-                    }
+                    200 -> parseEquipmentInstance(response.body())
                     404 -> {
                         Logger.log(LogId.W_5200, "equipment", instanceId)
                         null
@@ -226,11 +218,7 @@ class ItemRepository {
                     .build()
                 val response = client.send(request, HttpResponse.BodyHandlers.ofString())
                 return when (response.statusCode()) {
-                    200, 201 -> {
-                        val instance = parseRuneInstance(response.body())
-                        Logger.log(LogId.D_5200, "rune", runeId)
-                        instance
-                    }
+                    200, 201 -> parseRuneInstance(response.body())
                     else -> {
                         Logger.log(LogId.E_5200, "HTTP ${response.statusCode()} for POST $path")
                         throw IOException("Unexpected status ${response.statusCode()} for POST $path")
@@ -260,11 +248,7 @@ class ItemRepository {
                 val request = ApiRequestUtil.buildRequestBuilder(path).GET().build()
                 val response = client.send(request, HttpResponse.BodyHandlers.ofString())
                 return when (response.statusCode()) {
-                    200 -> {
-                        val instance = parseRuneInstance(response.body())
-                        Logger.log(LogId.D_5200, "rune", instanceId)
-                        instance
-                    }
+                    200 -> parseRuneInstance(response.body())
                     404 -> {
                         Logger.log(LogId.W_5200, "rune", instanceId)
                         null
@@ -291,11 +275,7 @@ class ItemRepository {
                 val request = ApiRequestUtil.buildRequestBuilder(path).GET().build()
                 val response = client.send(request, HttpResponse.BodyHandlers.ofString())
                 return when (response.statusCode()) {
-                    200 -> {
-                        val item = parseItem(response.body())
-                        Logger.log(LogId.D_5200, item.category, itemId)
-                        item
-                    }
+                    200 -> parseItem(response.body())
                     404 -> {
                         Logger.log(LogId.W_5200, categoryForLog, itemId)
                         null

@@ -1,57 +1,31 @@
-# AstralRecord Plugin Guide
+# AstralRecord Plugin — AI Agent Guide
 
-対象: `AstralRecord/src/main/java/io/github/maaasu/astralRecord/`
+このファイルは **AI エージェント専用** の作業手順書です。
+プロジェクトルール（言語選定 / ディレクトリ構成 / コーディング規約 / JavaDoc 規約 など、人間・AI 問わず編集者全員に必要な情報）は [README.md](README.md) を参照してください。
 
-## 役割
+## 必須手順
 
-- Minecraft サーバープラグイン本体を管理する。
-- ゲームロジック、プレイヤー体験、Plugin 内部の機能連携を担当する。
+1. **コードを変更する作業を行う前に、[README.md](README.md) を必ず読む**。プロジェクトの構造・規約・データアクセス方針はそちらに記載されている。
+2. 変更内容に応じて、下表の補助プロンプトのうち **該当するものだけ** を追加で読む（不要な補助プロンプトは開かない）。
+3. ファイル読み取りは UTF-8 を優先する。文字化けがある場合は他のエンコーディングで再読し、文字化けのまま実装を進めない。
 
-## ディレクトリ方針
+## 補助プロンプト（変更内容に該当するものだけ読む）
 
-- `core/`
-  - コマンド・イベント登録の起点だけを置く。
-- `feature/<feature>/`
-  - 機能単位の実装を置く。
-- `infrastructure/`
-  - 横断的な技術要素だけを置く。ゲームロジックは持たせない。
-- `src/main/resources/`
-  - `plugin.yml`、`config.yml`、properties 類などのリソースを置く。
+| 変更内容 | 読むファイル |
+|:--|:--|
+| コード追加・修正全般、配置先・言語選定の判断 | [.agents/prompts/code.md](.agents/prompts/code.md) |
+| ログ出力 / `LogId` / `logger.properties` の追加・変更 | [.agents/prompts/logger.md](.agents/prompts/logger.md) |
+| プレイヤー向けメッセージ / `MsgId` / `player.properties` の追加・変更 | [.agents/prompts/player_msg.md](.agents/prompts/player_msg.md) |
+| DB 契約・スキーマに依存する実装、API/Database リポジトリと連動する変更 | [.agents/prompts/database.md](.agents/prompts/database.md) |
 
-## 実装方針
+該当しない領域の補助プロンプトはトークン節約のため開かない。複数領域にまたがる変更の場合のみ、関係するファイルを必要分だけ追加で読む。
 
-- ビジネスロジックは Java を優先する。
-- Kotlin は次の用途で積極的に使ってよい。
-  - `data class` を使う Model
-  - Repository 実装
-  - GUI / View
-- 新規追加時は、既存ファイルの言語と責務分離を崩さない。
-- Bukkit/Paper API のスレッド制約を守る。
-- プレイヤー表現は原則 `AstPlayer` を使う。
-- `org.bukkit.entity.Player` を直接引き回すのは最小限にする。
+## このファイルに書かないもの
 
-## 変更時の必須確認
+以下の情報は AI エージェント専用ではないため、すべて [README.md](README.md) または該当する補助プロンプトに置く。AGENTS.md に重複記載しない。
 
-- 機能追加は `feature/` 配下に閉じているか。
-- DB アクセスが repository 層に閉じているか。
-- ログ、プレイヤーメッセージ、設定値の扱いが既存ルールに合っているか。
-- API や DB 契約が変わるなら関連プロジェクトの更新も必要か。
-
-## 補助プロンプト
-
-- `.agents/prompts/code.md`
-  - Plugin 全般のコード規約、言語選定、構造ルールを扱う。
-- `.agents/prompts/logger.md`
-  - `LogId` や `logger.properties` に関わる変更で読む。
-- `.agents/prompts/player_msg.md`
-  - `MsgId` や `player.properties` に関わる変更で読む。
-- `.agents/prompts/database.md`
-  - DB 契約や DB ドキュメントに関わる変更で読む。
-
-## AI 作業手順（必須）
-
-- 作業開始時に必ず `AGENTS.md`（本ファイル）を最初に読む。
-- 変更内容に応じて、対応する `.agents/prompts/*.md` を作業前に読む。
-  - ログ変更は `.agents/prompts/logger.md` を必ず読む。
-- ファイル読み取り時は UTF-8 を優先し、文字化けがある場合はエンコーディングを切り替えて再読する。
-- 文字化けした状態のまま実装を進めない。
+- 技術スタック・ディレクトリ構成・データ管理方針
+- 言語選定ルール（Java / Kotlin の使い分け）
+- コーディング規約（パッケージ配置、ハードコーディング禁止、`AstPlayer` 利用など）
+- JavaDoc / KDoc の記載ルール
+- ステータスシステム等のドメイン仕様

@@ -35,6 +35,16 @@ public final class AstPlayerCache {
     }
 
     /**
+     * 指定 UUID のプレイヤーがキャッシュ済みか判定します。
+     *
+     * @param uuid プレイヤーの UUID
+     * @return キャッシュ済みの場合は true
+     */
+    public static boolean contains(@NotNull UUID uuid) {
+        return CACHE.containsKey(uuid);
+    }
+
+    /**
      * UUID に対応する {@link AstPlayer} をキャッシュから取得します。
      *
      * @param uuid プレイヤーの UUID

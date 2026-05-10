@@ -74,9 +74,9 @@ public class PlayerHudService {
 
     private void updateBars(Player player, StatusSnapshot snapshot) {
         setHealthBar(player, ratio(snapshot.getCurrentHp(), snapshot.getMaxValue(StatusType.MAX_HEALTH)));
-        player.setFoodLevel((int) Math.round(ratio(snapshot.getCurrentMp(), snapshot.getMaxValue(StatusType.MAX_MANA)) * 20.0D));
+        player.setFoodLevel((int) Math.round(ratio(snapshot.getCurrentEnergy(), snapshot.getMaxValue(StatusType.MAX_ENERGY)) * 20.0D));
         player.setSaturation(0.0F);
-        player.setExp((float) ratio(snapshot.getCurrentEnergy(), snapshot.getMaxValue(StatusType.MAX_ENERGY)));
+        player.setExp((float) ratio(snapshot.getCurrentMp(), snapshot.getMaxValue(StatusType.MAX_MANA)));
     }
 
     private void setHealthBar(Player player, double ratio) {

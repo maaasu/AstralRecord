@@ -13,15 +13,16 @@ import io.github.maaasu.astralRecord.feature.user.service.UserService;
 import io.github.maaasu.astralRecord.infrastructure.logging.LogId;
 import io.github.maaasu.astralRecord.infrastructure.logging.Logger;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.UUID;
 
 /**
  * プレイヤー機能のビジネスロジックを担うサービスクラス。
  * ログイン時の AstPlayer 構築・キャッシュ登録・OP権限付与を管理します。
  */
 public class PlayerService {
-
-    /** permission がこの値以上の場合に Minecraft OP 権限を付与する */
-    private static final int OP_PERMISSION_THRESHOLD = 99;
 
     private final UserService userService;
     private final AccountService accountService;
@@ -44,34 +45,50 @@ public class PlayerService {
     }
 
     /**
-     * プレイヤーのログイン処理を行います。
+     * プレイヤーのログインに必要な外部データを取得します。
      * <p>
-     * DB から {@link UserModel} と {@link AccountModel} を取得して {@link AstPlayer} を構築し、
-     * {@link AstPlayerCache} に登録します。
-     * permission が {@value #OP_PERMISSION_THRESHOLD} 以上の場合は Minecraft OP 権限を付与します。
+     * Repository 層で HTTP API / DB 通信が発生するため、必ず Bukkit メインスレッド外から呼び出してください。
      *
-     * @param player ログインした Bukkit プレイヤー
+     * @param playerUuid ログインしたプレイヤー UUID
+     * @param playerName ログ出力用のプレイヤー名
+     * @return ログイン反映に必要なデータ。取得できない場合は null
      */
-    public void onPlayerJoin(Player player) {
-        var user = userService.getUser(player.getUniqueId());
+    public @Nullable PlayerJoinData loadPlayerJoinData(@NotNull UUID playerUuid, @NotNull String playerName) {
+        var user = userService.getUser(playerUuid);
         if (user == null) {
-            Logger.log(LogId.W_5070, player.getName());
-            return;
+            Logger.log(LogId.W_5070, playerName);
+            return null;
         }
 
         var account = accountService.getSelectedAccount(user.getUuid(), user.getAccountId());
         if (account == null) {
-            Logger.log(LogId.W_5070, player.getName());
+            Logger.log(LogId.W_5070, playerName);
+            return null;
+        }
+
+        return new PlayerJoinData(user, account);
+    }
+
+    /**
+     * 取得済みデータを Bukkit プレイヤーへ反映します。
+     * <p>
+     * {@link AstPlayer} の構築、権限・ゲームモード・インベントリ GUI の反映は Bukkit API を触るため、
+     * 必ず Bukkit メインスレッドから呼び出してください。
+     *
+     * @param player ログインした Bukkit プレイヤー
+     * @param joinData 非同期で取得済みのログインデータ
+     */
+    public void applyPlayerJoin(@NotNull Player player, @NotNull PlayerJoinData joinData) {
+        if (!player.isOnline() || AstPlayerCache.contains(player.getUniqueId())) {
             return;
         }
 
-        var astPlayer = new AstPlayer(player, user, account);
-        if (account.getMode().shouldReflectInventoryToGui()) {
+        var astPlayer = new AstPlayer(player, joinData.user(), joinData.account());
+        AstPlayerCache.put(astPlayer);
+        if (joinData.account().getMode().shouldReflectInventoryToGui()) {
             inventoryService.applyInventoriesToGui(astPlayer);
         }
         statusService.refreshStatus(astPlayer);
-        if (AstPlayerCache.getAll().contains(astPlayer))  return;
-        AstPlayerCache.put(astPlayer);
     }
 
     /**
@@ -86,6 +103,26 @@ public class PlayerService {
             playerSaveCoordinator.save(astPlayer, PlayerSaveTrigger.LOGOUT);
         }
         AstPlayerCache.remove(player.getUniqueId());
+    }
+
+    /**
+     * キャッシュ済みオンラインプレイヤーを保存してキャッシュを空にします。
+     * プラグイン停止時に呼び出し、/reload 相当の再起動でセッション情報が残らないようにします。
+     */
+    public void saveAllOnlinePlayersAndClear() {
+        for (AstPlayer astPlayer : AstPlayerCache.getAll()) {
+            playerSaveCoordinator.save(astPlayer, PlayerSaveTrigger.PLUGIN_DISABLE);
+        }
+        AstPlayerCache.clear();
+    }
+
+    /**
+     * ログイン反映に必要な外部データ。
+     *
+     * @param user ユーザーデータ
+     * @param account 選択中アカウントデータ
+     */
+    public record PlayerJoinData(@NotNull UserModel user, @NotNull AccountModel account) {
     }
 }
 

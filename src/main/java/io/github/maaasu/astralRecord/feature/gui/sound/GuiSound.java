@@ -12,7 +12,9 @@ public enum GuiSound {
     OPEN(Sound.BLOCK_CHEST_OPEN, 0.6f, 1.2f),
     SELECT(Sound.UI_BUTTON_CLICK, 0.6f, 1.4f),
     CLOSE(Sound.BLOCK_CHEST_CLOSE, 0.6f, 1.0f),
-    DENY(Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.7f);
+    DENY(Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.7f),
+    EQUIP(Sound.ITEM_ARMOR_EQUIP_GENERIC, 0.7f, 1.0f),
+    UNEQUIP(Sound.ITEM_ARMOR_EQUIP_LEATHER, 0.6f, 0.9f);
 
     private final Sound sound;
     private final float volume;

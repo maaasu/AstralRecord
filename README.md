@@ -81,6 +81,64 @@ DB に直接接続してデータを操作するのではなく、API を呼び�
 
 ---
 
+## ソースコード構成（src/）
+
+`src/main/java`・`src/main/kotlin` 配下のパッケージは、責務ごとに以下の方針で分離する。
+
+| ディレクトリ                | 役割                                  |
+|:----------------------|:------------------------------------|
+| `core/`               | コマンド・イベント登録の起点だけを置く。ロジックは置かない      |
+| `feature/<feature>/`  | 機能単位の実装を置く。新機能は必ずこの配下で完結させる         |
+| `infrastructure/`     | 横断的な技術要素のみ。ゲームロジックは含めない             |
+| `src/main/resources/` | `plugin.yml`・`config.yml`・properties 類 |
+
+---
+
+## 実装方針
+
+### 言語選定
+
+- ビジネスロジックは **Java** を優先する。
+- 次の用途では **Kotlin** を選んでよい。
+  - `data class` を使う Model
+  - Repository 実装
+  - GUI / View
+- 新規追加時は、対象ディレクトリ内の **既存ファイルの言語と責務分離を崩さない**。
+
+### API / スレッド
+
+- Bukkit / Paper API のスレッド制約（メインスレッド要求・非同期不可など）を守る。
+
+### プレイヤー表現
+
+- プレイヤー表現は原則 `AstPlayer` を使う。
+- `org.bukkit.entity.Player` を直接引き回すのは最小限に留める。
+
+---
+
+## コーディングルール
+
+- 機能追加は `feature/<feature>/` 配下に閉じる。
+- DB アクセスは repository 層に閉じる。生 SQL や ORM を feature 側に直接書かない。
+- API・DB 契約に関わる変更は、関連プロジェクト（[AstralRecordApi](https://github.com/maaasu/AstralRecordApi) / [Database](https://github.com/maaasu/Database)）の同期更新の要否を必ず確認する。
+- **enum で管理済みの値**（種別名・表示名・コードなど）の文字列ハードコーディングは禁止。
+- `System.out.println` の使用は禁止。ログ出力は既存の logger 経由で行う。
+- ログメッセージの追加・変更は、文字列を直書きせず `LogId` と `logger.properties` を **セットで** 更新する。
+- プレイヤー向けメッセージの追加・変更は `MsgId` と `player.properties` を **セットで** 更新する。
+  - `sendInfo` / `sendSuccess` / `sendError` / `sendMessage` に文字列リテラルを直接渡さない。
+
+---
+
+## JavaDoc / KDoc 規約
+
+- メソッドを新規作成または仕様変更した場合は、**日本語の JavaDoc / KDoc を必ず追加する**。
+- **`public` 修飾子を持ち、かつ外部（他クラス・他パッケージ）から呼び出されるメソッドは JavaDoc / KDoc の記載を必須とする。**
+  - 引数・戻り値・スローし得る例外・前提条件・副作用を明記する。
+  - シグネチャや仕様を変更する場合は、JavaDoc / KDoc も同時に更新する。
+- 内部利用のみの `public` メソッドであっても、外部から利用される可能性があるなら同様に記載することを推奨する。
+
+---
+
 ## ステータスシステム
 
 本プロジェクトのステータスシステムは、本格的 MMO RPG として設計されています。
@@ -112,13 +170,6 @@ DB に直接接続してデータを操作するのではなく、API を呼び�
 > **詳細仕様**: [`docs/status.md`](docs/status.md) を参照してください。
 
 ---
-
----
-
-## 開発運用ルール（追記）
-
-- Java / Kotlin でメソッドを新規作成または仕様変更した場合は、日本語の JavaDoc/KDoc を必ず追加する。
-- ログメッセージの追加・変更では、文字列のハードコーディングを行わず `LogId` と `logger.properties` をセットで更新する。
 
 ## status 記載方針（README）
 

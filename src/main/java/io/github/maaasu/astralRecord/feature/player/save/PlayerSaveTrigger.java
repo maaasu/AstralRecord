@@ -10,4 +10,6 @@ public enum PlayerSaveTrigger {
     MANUAL,
     /** 定期実行による自動保存。 */
     AUTO,
+    /** プラグイン停止時の保存。 */
+    PLUGIN_DISABLE,
 }

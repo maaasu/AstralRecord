@@ -22,11 +22,7 @@ public final class MainMenuScreenView extends BaseMenuScreenView {
             Component.text("ステータス", NamedTextColor.GREEN),
             List.of(Component.text("キャラクター情報を確認する", NamedTextColor.GRAY))
         ));
-        inventory.setItem(INVENTORY_SELECTOR_SLOT, createItem(
-            Material.CHEST,
-            Component.text("インベントリ", NamedTextColor.YELLOW),
-            List.of(Component.text("表示するインベントリを選ぶ", NamedTextColor.GRAY))
-        ));
+        // インベントリ選択は GUI オープン中のホットバーショートカットへ移管したため、メニューからは削除
         inventory.setItem(EQUIPMENT_GUI_SLOT, createItem(
             Material.NETHERITE_CHESTPLATE,
             Component.text("装備", NamedTextColor.GOLD),

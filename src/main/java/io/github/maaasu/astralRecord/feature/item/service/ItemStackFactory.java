@@ -337,6 +337,20 @@ public class ItemStackFactory {
                 .get(KEY_EQUIPMENT_INSTANCE_ID, PersistentDataType.STRING);
     }
 
+    /**
+     * ItemStack に埋め込まれたルーンインスタンス ID を取得します。
+     *
+     * @param item 判定対象
+     * @return ルーンインスタンス ID。ルーンインスタンスでなければ {@code null}
+     */
+    public static @Nullable String getRuneInstanceId(@NotNull ItemStack item) {
+        if (!item.hasItemMeta()) {
+            return null;
+        }
+        return item.getItemMeta().getPersistentDataContainer()
+                .get(KEY_RUNE_INSTANCE_ID, PersistentDataType.STRING);
+    }
+
     // endregion
 
     // region --- テンプレート構築 ---
