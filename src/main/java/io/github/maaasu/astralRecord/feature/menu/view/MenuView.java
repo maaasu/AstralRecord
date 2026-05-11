@@ -1,8 +1,10 @@
 package io.github.maaasu.astralRecord.feature.menu.view;
 
 import io.github.maaasu.astralRecord.AstralRecord;
+import io.github.maaasu.astralRecord.feature.currency.view.CurrencyGuiView;
 import io.github.maaasu.astralRecord.feature.inventory.model.EquipmentType;
 import io.github.maaasu.astralRecord.feature.inventory.model.InventoryType;
+import io.github.maaasu.astralRecord.feature.gui.paging.PagedGuiView;
 import io.github.maaasu.astralRecord.feature.menu.model.MenuScreen;
 import io.github.maaasu.astralRecord.feature.menu.model.MenuShortcutAction;
 import io.github.maaasu.astralRecord.feature.menu.model.MenuShortcutSettings;
@@ -21,6 +23,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 /**
  * プレイヤーが開くメニュー画面を構築します。
@@ -43,18 +47,24 @@ public class MenuView {
     public static final int EQUIPMENT_ACCESSORY_5_SLOT = EquipmentMenuScreenView.EQUIPMENT_ACCESSORY_5_SLOT;
     public static final int EQUIPMENT_ACCESSORY_6_SLOT = EquipmentMenuScreenView.EQUIPMENT_ACCESSORY_6_SLOT;
     public static final int EQUIPMENT_ACCESSORY_7_SLOT = EquipmentMenuScreenView.EQUIPMENT_ACCESSORY_7_SLOT;
+    public static final int PAGING_PREVIOUS_SLOT = PagedGuiView.PREVIOUS_SLOT;
+    public static final int PAGING_BACK_SLOT = PagedGuiView.BACK_SLOT;
+    public static final int PAGING_CLOSE_SLOT = PagedGuiView.CLOSE_SLOT;
+    public static final int PAGING_NEXT_SLOT = PagedGuiView.NEXT_SLOT;
     public static final int CRAFT_RESULT_RAW_SLOT = CraftShortcutView.CRAFT_RESULT_RAW_SLOT;
     public static final int CRAFT_SHORTCUT_RAW_SLOT_START = CraftShortcutView.CRAFT_SHORTCUT_RAW_SLOT_START;
 
     private static final Component MAIN_TITLE = Component.text("AstralRecord メニュー", NamedTextColor.DARK_AQUA);
     private static final Component INVENTORY_TITLE = Component.text("インベントリ選択", NamedTextColor.GOLD);
     private static final Component EQUIPMENT_TITLE = Component.text("装備", NamedTextColor.GOLD);
+    private static final String CURRENCY_TITLE = "通貨";
     private static final Component SHORTCUT_SLOT_TITLE = Component.text("ショートカット設定", NamedTextColor.AQUA);
     private static final Component SHORTCUT_ACTION_TITLE = Component.text("ショートカット項目", NamedTextColor.AQUA);
 
     private final MainMenuScreenView mainMenuScreenView;
     private final InventorySelectorScreenView inventorySelectorScreenView;
     private final EquipmentMenuScreenView equipmentMenuScreenView;
+    private final CurrencyGuiView currencyGuiView;
     private final ShortcutSettingsScreenView shortcutSettingsScreenView;
     private final CraftShortcutView craftShortcutView;
 
@@ -70,6 +80,7 @@ public class MenuView {
         this.mainMenuScreenView = new MainMenuScreenView();
         this.inventorySelectorScreenView = new InventorySelectorScreenView();
         this.equipmentMenuScreenView = new EquipmentMenuScreenView(equipmentPlaceholderKey);
+        this.currencyGuiView = new CurrencyGuiView();
         this.shortcutSettingsScreenView = new ShortcutSettingsScreenView();
         this.craftShortcutView = new CraftShortcutView(craftShortcutKey, craftActionKey);
     }
@@ -106,6 +117,33 @@ public class MenuView {
     ) {
         Inventory inventory = Bukkit.createInventory(new MenuInventoryHolder(MenuScreen.EQUIPMENT_GUI), SIZE, EQUIPMENT_TITLE);
         equipmentMenuScreenView.render(inventory, player, accessories);
+        player.openInventory(inventory);
+    }
+
+    /**
+     * 通貨を専用のページング GUI で開きます。
+     *
+     * @param player 対象プレイヤー
+     * @param currencyItems 表示対象通貨アイテム一覧
+     * @param pageIndex 0 始まりのページ番号
+     */
+    public void openCurrency(
+        @NotNull Player player,
+        @NotNull List<ItemStack> currencyItems,
+        int pageIndex
+    ) {
+        int normalizedPage = currencyGuiView.normalizePage(pageIndex, currencyItems.size());
+        int totalPages = currencyGuiView.totalPages(currencyItems.size());
+        Component title = Component.text(
+            CURRENCY_TITLE + " " + (normalizedPage + 1) + "/" + totalPages,
+            NamedTextColor.GOLD
+        );
+        Inventory inventory = Bukkit.createInventory(
+            new MenuInventoryHolder(MenuScreen.CURRENCY, -1, normalizedPage),
+            PagedGuiView.SIZE,
+            title
+        );
+        currencyGuiView.render(inventory, currencyItems, normalizedPage);
         player.openInventory(inventory);
     }
 
@@ -182,6 +220,19 @@ public class MenuView {
         return -1;
     }
 
+    /**
+     * メニューインベントリに紐づくページ番号を返します。
+     *
+     * @param inventory 判定対象インベントリ
+     * @return 0 始まりのページ番号。メニュー外なら 0
+     */
+    public int getPageIndex(@Nullable Inventory inventory) {
+        if (inventory != null && inventory.getHolder() instanceof MenuInventoryHolder holder) {
+            return holder.pageIndex();
+        }
+        return 0;
+    }
+
     public @Nullable InventoryType getInventoryTypeAtSlot(int rawSlot) {
         return inventorySelectorScreenView.getInventoryTypeAtSlot(rawSlot);
     }
@@ -234,5 +285,26 @@ public class MenuView {
 
     public int getCraftShortcutIndex(int rawSlot) {
         return craftShortcutView.getCraftShortcutIndex(rawSlot);
+    }
+
+    /**
+     * 通貨 GUI で前ページへ移動できるか判定します。
+     *
+     * @param pageIndex 0 始まりのページ番号
+     * @return 前ページが存在する場合 true
+     */
+    public boolean hasPreviousCurrencyPage(int pageIndex) {
+        return currencyGuiView.hasPreviousPage(pageIndex);
+    }
+
+    /**
+     * 通貨 GUI で次ページへ移動できるか判定します。
+     *
+     * @param currencyItems 表示対象通貨アイテム一覧
+     * @param pageIndex 0 始まりのページ番号
+     * @return 次ページが存在する場合 true
+     */
+    public boolean hasNextCurrencyPage(@NotNull List<ItemStack> currencyItems, int pageIndex) {
+        return currencyGuiView.hasNextPage(pageIndex, currencyItems.size());
     }
 }

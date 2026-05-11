@@ -25,7 +25,6 @@ public final class ShortcutSettingsScreenView extends BaseMenuScreenView {
             ));
         }
         inventory.setItem(BACK_SLOT, backItem());
-        inventory.setItem(CLOSE_SLOT, closeItem());
     }
 
     public void renderActionSelector(@NotNull Inventory inventory, @NotNull MenuShortcutAction currentAction) {
@@ -43,7 +42,6 @@ public final class ShortcutSettingsScreenView extends BaseMenuScreenView {
             ));
         }
         inventory.setItem(BACK_SLOT, backItem());
-        inventory.setItem(CLOSE_SLOT, closeItem());
     }
 
     public int getShortcutSettingSlotAtSlot(int rawSlot) {

@@ -1,4 +1,4 @@
-# ステータスシステム詳細仕様
+﻿# ステータスシステム詳細仕様
 
 > AstralRecord のプレイヤーステータスシステムに関する詳細仕様書です。
 > ソースコード上の定義: `feature/status/model/StatusType.kt`

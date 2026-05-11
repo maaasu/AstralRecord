@@ -9,7 +9,7 @@ enum class InventoryType(
     private vararg val inputAliases: String,
 ) {
     NORMAL("NORMAL", "ノーマル", true, false, true, "normal", "ノーマル"),
-    CURRENCY("CURRENCY", "通貨", true, false, true, "currency", "通貨"),
+    CURRENCY("CURRENCY", "通貨", true, false, false, "currency", "通貨"),
     EQUIPMENT("EQUIPMENT", "装備", true, true, true, "equipment", "equip", "装備"),
     RUNE("RUNE", "ルーン", true, true, true, "rune", "ルーン"),
     /** 装着中の防具・武器スロット（slot_index 1=メインハンド, 2=頭, 3=胴, 4=脚, 5=足） */

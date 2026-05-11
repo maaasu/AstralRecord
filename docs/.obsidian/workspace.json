@@ -1,0 +1,226 @@
+{
+  "main": {
+    "id": "e1b3b54371881257",
+    "type": "split",
+    "children": [
+      {
+        "id": "b6a548cd0e4c4ca6",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "111438a99989aa21",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "グラフビュー"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "2e28836263ccbfef",
+    "type": "split",
+    "children": [
+      {
+        "id": "7b32cc37ad2ad2e0",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2614d32499fa64fe",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "ファイルエクスプローラ"
+            }
+          },
+          {
+            "id": "9c5c11d246353acd",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "検索"
+            }
+          },
+          {
+            "id": "bf9091043a812733",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "ブックマーク"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "4974eb14246ce2f3",
+    "type": "split",
+    "children": [
+      {
+        "id": "c1213983441b175b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "58890652e29d4af5",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "features/user/README.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "READMEへのバックリンク"
+            }
+          },
+          {
+            "id": "40b51f28ab1e1f11",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "アウトゴーイングリンク"
+            }
+          },
+          {
+            "id": "c64f082f471f4192",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "タグ"
+            }
+          },
+          {
+            "id": "a35aaa9d5875f7f4",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "すべてのプロパティ"
+            }
+          },
+          {
+            "id": "624f5c1d7f8466c9",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "アウトライン"
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "mermaid-tools:Open Mermaid Toolbar": false,
+      "switcher:クイックスイッチャーを開く": false,
+      "graph:グラフビューを開く": false,
+      "canvas:新規キャンバスを作成": false,
+      "daily-notes:今日のデイリーノートを開く": false,
+      "templates:テンプレートを挿入": false,
+      "command-palette:コマンドパレットを開く": false,
+      "bases:新規ベースを作成": false,
+      "obsidian-git:Open Git source control": false,
+      "templater-obsidian:Templater": false,
+      "table-editor-obsidian:Advanced Tables Toolbar": false,
+      "file-tree-alternative:File Tree Alternative Plugin": false
+    }
+  },
+  "active": "111438a99989aa21",
+  "lastOpenFiles": [
+    "feature/05-buff/1-モデル定義/05_1.00-モデル定義.md",
+    "feature/05-buff/2-ユースケース/05_2.00-ユースケース.md",
+    "feature/07-status/1-モデル定義/07_1.00-モデル定義.md",
+    "feature/07-status/4-統合フロー/07_4.00-統合フロー.md",
+    "feature/07-status/2-ユースケース/07_2.00-ユースケース.md",
+    "feature/06-loot/4-統合フロー/06_4.00-統合フロー.md",
+    "feature/06-loot/9-未決事項/06_9.00-未決事項.md",
+    "feature/06-loot/9-未決事項/06_9.00-未決事項.md.tmp.22904.1778519464348",
+    "feature/06-loot/9-未決事項",
+    "feature/06-loot/5-例外・ログ・運用/06_5.00-例外・ログ・運用.md",
+    "feature/06-loot/5-例外・ログ・運用/06_5.00-例外・ログ・運用.md.tmp.22904.1778519452406",
+    "feature/06-loot/5-例外・ログ・運用",
+    "feature/06-loot/4-統合フロー/06_4.00-統合フロー.md.tmp.22904.1778519436241",
+    "feature/06-loot/4-統合フロー",
+    "feature/06-loot/3-メソッド仕様/06_3.04-リポジトリ.md",
+    "feature/06-loot/3-メソッド仕様/06_3.04-リポジトリ.md.tmp.22904.1778519423018",
+    "feature/06-loot/3-メソッド仕様/06_3.02-サービス.md",
+    "feature/06-loot/3-メソッド仕様/06_3.02-サービス.md.tmp.22904.1778519406451",
+    "feature/06-loot/3-メソッド仕様/06_3.00-索引.md",
+    "feature/06-loot/3-メソッド仕様/06_3.00-索引.md.tmp.22904.1778519391481",
+    "feature/06-loot/3-メソッド仕様",
+    "feature/06-loot/2-ユースケース/06_2.00-ユースケース.md",
+    "feature/06-loot/1-モデル定義/06_1.00-モデル定義.md",
+    "feature/06-loot/0-概要/06_0.00-概要.md",
+    "feature/06-loot/06_README.md",
+    "feature/05-buff/9-未決事項/05_9.00-未決事項.md",
+    "feature/05-buff/5-例外・ログ・運用/05_5.00-例外・ログ・運用.md",
+    "feature/05-buff/4-統合フロー/05_4.00-統合フロー.md",
+    "feature/07-status/5-例外・ログ・運用/07_5.00-例外・ログ・運用.md",
+    "feature/07-status/3-メソッド仕様/07_3.03-タスク.md",
+    "feature/07-status/3-メソッド仕様/07_3.02-コマンド.md",
+    "feature/07-status/3-メソッド仕様/07_3.01-サービス.md",
+    "feature/07-status/9-未決事項/07_9.00-未決事項.md",
+    "feature/07-status/3-メソッド仕様/07_3.00-索引.md",
+    "feature/07-status/0-概要/07_0.00-概要.md",
+    "feature/07-status/3-メソッド仕様/07_3.04-モデル操作.md",
+    "無題のファイル.canvas"
+  ]
+}

@@ -15,7 +15,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 public final class InventorySelectorScreenView extends BaseMenuScreenView {
-    private static final int[] INVENTORY_TYPE_SLOTS = {20, 21, 23, 24};
+    private static final int[] INVENTORY_TYPE_SLOTS = {21, 22, 23};
 
     /**
      * 種別選択メニューを描画します。選択中の種別は発光で強調表示します。
@@ -39,7 +39,6 @@ public final class InventorySelectorScreenView extends BaseMenuScreenView {
             inventory.setItem(INVENTORY_TYPE_SLOTS[i], icon);
         }
         inventory.setItem(BACK_SLOT, backItem());
-        inventory.setItem(CLOSE_SLOT, closeItem());
     }
 
     public @Nullable InventoryType getInventoryTypeAtSlot(int rawSlot) {
@@ -56,8 +55,7 @@ public final class InventorySelectorScreenView extends BaseMenuScreenView {
         return new InventoryType[] {
             InventoryType.NORMAL,
             InventoryType.EQUIPMENT,
-            InventoryType.RUNE,
-            InventoryType.CURRENCY
+            InventoryType.RUNE
         };
     }
 

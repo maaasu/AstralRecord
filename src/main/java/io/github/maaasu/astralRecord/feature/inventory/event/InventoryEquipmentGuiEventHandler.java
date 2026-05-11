@@ -1,6 +1,7 @@
 package io.github.maaasu.astralRecord.feature.inventory.event;
 
 import io.github.maaasu.astralRecord.core.event.AbstractEventHandler;
+import io.github.maaasu.astralRecord.feature.currency.service.CurrencyService;
 import io.github.maaasu.astralRecord.feature.inventory.model.EquipmentType;
 import io.github.maaasu.astralRecord.feature.inventory.service.HotbarLayout;
 import io.github.maaasu.astralRecord.feature.inventory.service.InventoryService;
@@ -28,19 +29,23 @@ public class InventoryEquipmentGuiEventHandler extends AbstractEventHandler {
 
     private final MenuView menuView;
     private final InventoryService inventoryService;
+    private final CurrencyService currencyService;
 
     /**
      * 装備 GUI とプレイヤーインベントリ上の装備操作を処理するイベントハンドラーを生成します。
      *
      * @param menuView 装備メニューの表示・スロット判定に使用するビュー
      * @param inventoryService 装備状態とインベントリ保存を担当するサービス
+     * @param currencyService 通貨表示を担当するサービス
      */
     public InventoryEquipmentGuiEventHandler(
         @NotNull MenuView menuView,
-        @NotNull InventoryService inventoryService
+        @NotNull InventoryService inventoryService,
+        @NotNull CurrencyService currencyService
     ) {
         this.menuView = menuView;
         this.inventoryService = inventoryService;
+        this.currencyService = currencyService;
     }
 
     /**
@@ -87,6 +92,7 @@ public class InventoryEquipmentGuiEventHandler extends AbstractEventHandler {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
+        event.setCancelled(true);
 
         if (event.getRawSlot() >= topInventory.getSize()) {
             handleEquipmentMenuPlayerInventoryClick(event, topInventory, player);
@@ -199,9 +205,17 @@ public class InventoryEquipmentGuiEventHandler extends AbstractEventHandler {
         @NotNull Inventory topInventory,
         @NotNull Player player
     ) {
-        event.setCancelled(true);
         if (!(event.getClickedInventory() instanceof PlayerInventory playerInventory)) {
             GuiSound.DENY.play(player);
+            return;
+        }
+
+        AstPlayer astPlayer = AstPlayerCache.get(player);
+        if (astPlayer != null
+            && inventoryService.isHotbarShortcutMode(astPlayer)
+            && event.getSlot() >= 0
+            && event.getSlot() <= 8) {
+            handleHotbarShortcutClick(astPlayer, player, event.getSlot());
             return;
         }
 
@@ -304,10 +318,30 @@ public class InventoryEquipmentGuiEventHandler extends AbstractEventHandler {
         @NotNull Player player,
         int slot
     ) {
-        boolean handled = inventoryService.isHotbarShortcutMode(astPlayer)
-            ? inventoryService.handleHotbarShortcutClick(astPlayer, slot)
-            : inventoryService.handleHotbarSlotClick(astPlayer, slot + 1);
+        if (inventoryService.isHotbarShortcutMode(astPlayer)) {
+            event.setCancelled(true);
+            handleHotbarShortcutClick(astPlayer, player, slot);
+            return;
+        }
+        boolean handled = inventoryService.handleHotbarSlotClick(astPlayer, slot + 1);
         playResultSound(player, handled);
+    }
+
+    private void handleHotbarShortcutClick(
+        @NotNull AstPlayer astPlayer,
+        @NotNull Player player,
+        int slot
+    ) {
+        boolean handled = inventoryService.handleHotbarShortcutClick(astPlayer, slot);
+        if (handled) {
+            if (slot == 8) {
+                GuiSound.CLOSE.play(player);
+            } else {
+                GuiSound.SELECT.play(player);
+            }
+            return;
+        }
+        GuiSound.DENY.play(player);
     }
 
     private void handleOffhandHotbarClick(

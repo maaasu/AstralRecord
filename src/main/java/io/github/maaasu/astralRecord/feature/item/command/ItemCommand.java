@@ -71,7 +71,8 @@ public class ItemCommand extends AstCommand {
             return;
         }
 
-        var inventoryService = AstralRecord.getInstance().getInventoryService();
+        var plugin = AstralRecord.getInstance();
+        var inventoryService = plugin.getInventoryService();
         if (inventoryService == null) {
             player.sendMessage(PlayerMsgId.P_5063);
             return;
@@ -86,7 +87,15 @@ public class ItemCommand extends AstCommand {
         }
 
         InventoryType inventoryType = inventoryService.resolveInventoryType(model);
-        inventoryService.applyInventoryToGui(player, inventoryType);
+        if (inventoryType == InventoryType.CURRENCY) {
+            plugin.getMenuView().openCurrency(
+                player.getBukkit(),
+                plugin.getCurrencyService().getCurrencyItemStacks(player.getAccount().getUuid()),
+                0
+            );
+        } else {
+            inventoryService.applyInventoryToGui(player, inventoryType);
+        }
         player.sendMessage(PlayerMsgId.P_5240, model.getName(), granted);
     }
 

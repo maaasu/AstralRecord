@@ -3,6 +3,7 @@ package io.github.maaasu.astralRecord.feature.menu.event;
 import io.github.maaasu.astralRecord.AstralRecord;
 import io.github.maaasu.astralRecord.core.event.AbstractEventHandler;
 import io.github.maaasu.astralRecord.feature.account.model.AccountMode;
+import io.github.maaasu.astralRecord.feature.currency.service.CurrencyService;
 import io.github.maaasu.astralRecord.feature.inventory.model.InventoryType;
 import io.github.maaasu.astralRecord.feature.inventory.service.InventoryService;
 import io.github.maaasu.astralRecord.feature.menu.model.MenuScreen;
@@ -24,9 +25,13 @@ import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.CraftingInventory;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,6 +45,7 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
     private final MenuView menuView;
     private final MenuShortcutRepository shortcutRepository;
     private final InventoryService inventoryService;
+    private final CurrencyService currencyService;
     private final Set<UUID> craftRenderSuppressed = ConcurrentHashMap.newKeySet();
 
     /**
@@ -49,17 +55,20 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
      * @param menuView メニュー表示ビュー
      * @param shortcutRepository ショートカット設定リポジトリ
      * @param inventoryService インベントリ表示サービス
+     * @param currencyService 通貨表示サービス
      */
     public MenuOpenEventHandler(
         @NotNull AstralRecord plugin,
         @NotNull MenuView menuView,
         @NotNull MenuShortcutRepository shortcutRepository,
-        @NotNull InventoryService inventoryService
+        @NotNull InventoryService inventoryService,
+        @NotNull CurrencyService currencyService
     ) {
         this.plugin = plugin;
         this.menuView = menuView;
         this.shortcutRepository = shortcutRepository;
         this.inventoryService = inventoryService;
+        this.currencyService = currencyService;
     }
 
     /**
@@ -93,23 +102,29 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
         runSafely(() -> {
             if (event.getPlayer() instanceof Player player) {
                 scheduleCraftShortcutRender(player);
-                applyHotbarShortcutMode(player, event.getView().getType());
+                applyHotbarShortcutMode(player, event.getInventory(), event.getView().getType());
             }
         }, LogId.E_5600, event.getPlayer().getName());
     }
 
     /**
-     * 開いたビューがプレイヤー自身のクラフトインベントリの場合、ホットバーをショートカット表示モードへ切り替えます。
+     * GUI 表示中はホットバーをショートカット表示モードへ切り替えます。
      *
      * @param player 対象プレイヤー
+     * @param openedInventory 開かれたインベントリ
      * @param viewType 開いたビューの種別
      */
-    private void applyHotbarShortcutMode(@NotNull Player player, @NotNull org.bukkit.event.inventory.InventoryType viewType) {
+    private void applyHotbarShortcutMode(
+        @NotNull Player player,
+        @NotNull Inventory openedInventory,
+        @NotNull org.bukkit.event.inventory.InventoryType viewType
+    ) {
         AstPlayer astPlayer = AstPlayerCache.get(player);
         if (astPlayer == null || !astPlayer.getAccount().getMode().shouldReflectInventoryToGui())
             return;
 
-        if (viewType == org.bukkit.event.inventory.InventoryType.CRAFTING) {
+        if (menuView.isMenuInventory(openedInventory)
+            || viewType == org.bukkit.event.inventory.InventoryType.CRAFTING) {
             inventoryService.setHotbarShortcutMode(astPlayer, true);
         }
     }
@@ -156,10 +171,14 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
      *
      * @param event インベントリクリックイベント
      */
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryClick(InventoryClickEvent event) {
         runSafely(() -> {
             if (menuView.isMenuInventory(event.getView().getTopInventory())) {
+                if (event.getWhoClicked() instanceof Player player
+                    && handleMenuHotbarShortcutClick(event, player)) {
+                    return;
+                }
                 if (menuView.getMenuScreen(event.getView().getTopInventory()) == MenuScreen.EQUIPMENT_GUI) {
                     return;
                 }
@@ -178,10 +197,16 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
                 return;
             }
 
-            if (!isCraftMenuClick(event)) {
+            if (event.getView().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
                 return;
             }
 
+            if (!isCraftMenuClick(event)) {
+                scheduleCraftShortcutRender(player);
+                return;
+            }
+
+            event.setCancelled(true);
             if (event.getRawSlot() == MenuView.CRAFT_RESULT_RAW_SLOT) {
                 GuiSound.OPEN.play(player);
                 openMainMenu(player);
@@ -227,6 +252,7 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
     public void onInventoryDrag(InventoryDragEvent event) {
         runSafely(() -> {
             if (menuView.isMenuInventory(event.getView().getTopInventory())) {
+                event.setCancelled(true);
                 if (event.getWhoClicked() instanceof Player player) {
                     GuiSound.DENY.play(player);
                 }
@@ -255,6 +281,7 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
+        event.setCancelled(true);
 
         if (event.getRawSlot() == MenuView.CLOSE_SLOT) {
             GuiSound.CLOSE.play(player);
@@ -272,9 +299,47 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
             case INVENTORY_SELECTOR -> handleInventorySelectorClick(player, event.getRawSlot());
             case EQUIPMENT_GUI -> {
             }
+            case CURRENCY -> handleCurrencyClick(event, player);
             case SHORTCUT_SLOT_SELECTOR -> handleShortcutSlotSelectorClick(player, event.getRawSlot());
             case SHORTCUT_ACTION_SELECTOR -> handleShortcutActionSelectorClick(player, event.getRawSlot());
         }
+    }
+
+    /**
+     * メニュー GUI 表示中にホットバーへ描画されたショートカットを処理します。
+     *
+     * @param event インベントリクリックイベント
+     * @param player 操作プレイヤー
+     * @return ホットバーショートカット領域のクリックとして処理した場合 true
+     */
+    private boolean handleMenuHotbarShortcutClick(
+        @NotNull InventoryClickEvent event,
+        @NotNull Player player
+    ) {
+        if (!(event.getClickedInventory() instanceof PlayerInventory)) {
+            return false;
+        }
+        int slot = event.getSlot();
+        if (slot < 0 || slot > 8) {
+            return false;
+        }
+        AstPlayer astPlayer = AstPlayerCache.get(player);
+        if (astPlayer == null || !inventoryService.isHotbarShortcutMode(astPlayer)) {
+            return false;
+        }
+
+        event.setCancelled(true);
+        boolean handled = inventoryService.handleHotbarShortcutClick(astPlayer, slot);
+        if (handled) {
+            if (slot == 8) {
+                GuiSound.CLOSE.play(player);
+            } else {
+                GuiSound.SELECT.play(player);
+            }
+        } else {
+            GuiSound.DENY.play(player);
+        }
+        return true;
     }
 
     /**
@@ -343,6 +408,41 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
         }
 
         applyInventoryShortcut(player, inventoryType);
+    }
+
+    /**
+     * 通貨 GUI のページング操作を処理します。
+     *
+     * @param event インベントリクリックイベント
+     * @param player 操作プレイヤー
+     */
+    private void handleCurrencyClick(@NotNull InventoryClickEvent event, @NotNull Player player) {
+        int rawSlot = event.getRawSlot();
+        if (rawSlot == MenuView.PAGING_CLOSE_SLOT) {
+            GuiSound.CLOSE.play(player);
+            player.closeInventory();
+            return;
+        }
+        if (rawSlot == MenuView.PAGING_BACK_SLOT) {
+            GuiSound.SELECT.play(player);
+            menuView.open(player);
+            return;
+        }
+
+        int pageIndex = menuView.getPageIndex(event.getView().getTopInventory());
+        List<ItemStack> currencyItems = currencyItems(player);
+        if (rawSlot == MenuView.PAGING_PREVIOUS_SLOT && menuView.hasPreviousCurrencyPage(pageIndex)) {
+            GuiSound.SELECT.play(player);
+            menuView.openCurrency(player, currencyItems, pageIndex - 1);
+            return;
+        }
+        if (rawSlot == MenuView.PAGING_NEXT_SLOT && menuView.hasNextCurrencyPage(currencyItems, pageIndex)) {
+            GuiSound.SELECT.play(player);
+            menuView.openCurrency(player, currencyItems, pageIndex + 1);
+            return;
+        }
+
+        GuiSound.DENY.play(player);
     }
 
     /**
@@ -417,6 +517,11 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
             openMainMenu(player);
             return;
         }
+        if (action.isCurrencyAction()) {
+            GuiSound.OPEN.play(player);
+            openCurrency(player, 0);
+            return;
+        }
         if (action.getInventoryType() != null) {
             applyInventoryShortcut(player, action.getInventoryType());
             return;
@@ -460,6 +565,35 @@ public class MenuOpenEventHandler extends AbstractEventHandler {
             menuView.open(player);
             resumeCraftRendering(player);
         });
+    }
+
+    /**
+     * クラフト欄表示アイテムを消去して通貨 GUI を開きます。
+     *
+     * @param player 操作プレイヤー
+     * @param pageIndex 0 始まりのページ番号
+     */
+    private void openCurrency(@NotNull Player player, int pageIndex) {
+        suppressCraftRendering(player);
+        menuView.clearCraftShortcuts(player);
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            menuView.openCurrency(player, currencyItems(player), pageIndex);
+            resumeCraftRendering(player);
+        });
+    }
+
+    /**
+     * プレイヤーの通貨表示アイテム一覧を取得します。
+     *
+     * @param player 対象プレイヤー
+     * @return 通貨 GUI 表示用 ItemStack 一覧
+     */
+    private @NotNull List<ItemStack> currencyItems(@NotNull Player player) {
+        AstPlayer astPlayer = AstPlayerCache.get(player);
+        if (astPlayer == null) {
+            return List.of();
+        }
+        return currencyService.getCurrencyItemStacks(astPlayer.getAccount().getUuid());
     }
 
     /**

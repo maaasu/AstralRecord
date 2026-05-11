@@ -13,8 +13,8 @@ import java.util.List;
 
 public abstract class BaseMenuScreenView {
     public static final int SIZE = 54;
-    public static final int CLOSE_SLOT = 49;
-    public static final int BACK_SLOT = 53;
+    public static final int CLOSE_SLOT = -1;
+    public static final int BACK_SLOT = 49;
 
     protected void fill(@NotNull Inventory inventory) {
         ItemStack border = createItem(Material.BLACK_STAINED_GLASS_PANE, Component.text(" "), List.of());

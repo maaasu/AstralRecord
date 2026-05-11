@@ -38,7 +38,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -617,9 +619,7 @@ public class InventoryService {
         var safeAmount = Math.max(1, amount);
         InventoryType inventoryType = resolveTargetInventoryType(model);
         var targetInventory = ensureInventory(accountId, inventoryType, resolveSlotCapacity(inventoryType), accountId);
-        Set<Integer> usedSlots = targetInventory.getInventoryType().isSlotted()
-            ? NormalInventoryLayout.collectUsedSlots(getEntries(targetInventory.getInventoryId()))
-            : Set.of();
+        Set<Integer> usedSlots = collectUsedSlots(targetInventory);
 
         return switch (ItemCategory.fromApiValue(model.getCategory())) {
             case EQUIPMENT -> addInstanceItems(targetInventory, model, safeAmount, InventoryInstanceType.EQUIPMENT, usedSlots, accountId);
@@ -648,9 +648,7 @@ public class InventoryService {
         InventoryType inventoryType = resolveTargetInventoryType(model);
         var targetInventory = ensureInventory(accountId, inventoryType, resolveSlotCapacity(inventoryType), accountId);
 
-        Set<Integer> usedSlots = targetInventory.getInventoryType().isSlotted()
-            ? NormalInventoryLayout.collectUsedSlots(getEntries(targetInventory.getInventoryId()))
-            : Set.of();
+        Set<Integer> usedSlots = collectUsedSlots(targetInventory);
 
         int granted = switch (ItemCategory.fromApiValue(model.getCategory())) {
             case EQUIPMENT -> addInstanceItems(targetInventory, model, safeAmount, InventoryInstanceType.EQUIPMENT, usedSlots, accountId);
@@ -724,8 +722,44 @@ public class InventoryService {
         return resolveTargetInventoryType(model);
     }
 
+    /**
+     * 指定種別のデフォルトインベントリ内アイテムを GUI 表示用 ItemStack に変換します。
+     *
+     * @param accountId 対象アカウントID
+     * @param inventoryType 取得するインベントリ種別
+     * @return 表示可能な ItemStack 一覧
+     */
+    public @NotNull List<ItemStack> getInventoryItemStacks(
+        @NotNull UUID accountId,
+        @NotNull InventoryType inventoryType
+    ) {
+        InventoryModel inventory = getInventories(accountId).stream()
+            .filter(this::isDefaultProfile)
+            .filter(inv -> inv.getInventoryType() == inventoryType)
+            .findFirst()
+            .orElse(null);
+        if (inventory == null || !inventory.isEnabled()) {
+            return List.of();
+        }
+
+        return getEntries(inventory.getInventoryId()).stream()
+            .filter(entry -> !entry.isDeleted())
+            .sorted(Comparator.<InventoryEntryModel, Integer>comparing(
+                entry -> entry.getSlotIndex() == null ? Integer.MAX_VALUE : entry.getSlotIndex()
+            ).thenComparing(InventoryEntryModel::getCreatedAt))
+            .map(itemStackResolver::resolve)
+            .filter(itemStack -> itemStack != null && itemStack.getType() != Material.AIR)
+            .toList();
+    }
+
     public void applyInventoryToGui(AstPlayer astPlayer, InventoryType inventoryType) {
         if (!astPlayer.getAccount().getMode().shouldReflectInventoryToGui()) {
+            return;
+        }
+
+        if (inventoryType == InventoryType.CURRENCY) {
+            clearManagedStorageSlots(astPlayer.getBukkit());
+            astPlayer.getBukkit().updateInventory();
             return;
         }
 
@@ -770,6 +804,11 @@ public class InventoryService {
 
         if (inventory.getInventoryType() == InventoryType.NORMAL) {
             applySlottedInventory(bukkitPlayer, inventory);
+            return;
+        }
+
+        if (inventory.getInventoryType() == InventoryType.CURRENCY) {
+            clearManagedStorageSlots(bukkitPlayer);
             return;
         }
 
@@ -1224,6 +1263,17 @@ public class InventoryService {
         compactDisplayedInventory(astPlayer);
         applyDisplayedInventoryToGui(astPlayer);
         renderHotbarInventory(astPlayer);
+        AstralRecord plugin = AstralRecord.getInstance();
+        if (plugin != null) {
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (!astPlayer.getBukkit().isOnline()) {
+                    return;
+                }
+                applyDisplayedInventoryToGui(astPlayer);
+                renderHotbarInventory(astPlayer);
+                astPlayer.getBukkit().updateInventory();
+            });
+        }
         return true;
     }
 
@@ -1390,7 +1440,7 @@ public class InventoryService {
     /**
      * ホットバーショートカットモード中のホットバースロットクリックを処理します。
      * <p>
-     * 各スロットの割当: 0=NORMAL, 1=EQUIPMENT, 2=RUNE, 3=CURRENCY, 8=CLOSE。
+     * 各スロットの割当: 0=NORMAL, 1=EQUIPMENT, 2=RUNE, 8=CLOSE。
      *
      * @param astPlayer 対象プレイヤー
      * @param bukkitSlot Bukkit storage 側のスロット番号（0〜8）
@@ -1404,7 +1454,6 @@ public class InventoryService {
             case 0 -> InventoryType.NORMAL;
             case 1 -> InventoryType.EQUIPMENT;
             case 2 -> InventoryType.RUNE;
-            case 3 -> InventoryType.CURRENCY;
             default -> null;
         };
         if (target != null) {
@@ -1476,8 +1525,7 @@ public class InventoryService {
         changed |= setStorageItemIfChanged(inventory, 0, createInventoryShortcutIcon(InventoryType.NORMAL, Material.CHEST, displayed));
         changed |= setStorageItemIfChanged(inventory, 1, createInventoryShortcutIcon(InventoryType.EQUIPMENT, Material.NETHERITE_CHESTPLATE, displayed));
         changed |= setStorageItemIfChanged(inventory, 2, createInventoryShortcutIcon(InventoryType.RUNE, Material.AMETHYST_SHARD, displayed));
-        changed |= setStorageItemIfChanged(inventory, 3, createInventoryShortcutIcon(InventoryType.CURRENCY, Material.GOLD_INGOT, displayed));
-        for (int i = 4; i <= 7; i++) {
+        for (int i = 3; i <= 7; i++) {
             changed |= setStorageItemIfChanged(inventory, i, createHotbarSpacerIcon());
         }
         changed |= setStorageItemIfChanged(inventory, 8, createCloseShortcutIcon());
@@ -1700,6 +1748,10 @@ public class InventoryService {
     private void applyDisplayedInventoryToGui(@NotNull AstPlayer astPlayer) {
         UUID accountId = astPlayer.getAccount().getUuid();
         InventoryType displayedType = getDisplayedInventoryType(accountId);
+        if (displayedType == InventoryType.CURRENCY) {
+            clearManagedStorageSlots(astPlayer.getBukkit());
+            return;
+        }
         InventoryModel inventory = getInventories(accountId).stream()
             .filter(this::isDefaultProfile)
             .filter(inv -> inv.getInventoryType() == displayedType)
@@ -2250,7 +2302,7 @@ public class InventoryService {
     ) {
         int granted = 0;
         for (int i = 0; i < amount; i++) {
-            Integer slot = NormalInventoryLayout.findNextFreeSlot(usedSlots);
+            Integer slot = findNextFreeSlot(inventory, usedSlots);
             if (slot == null) {
                 break;
             }
@@ -2320,7 +2372,7 @@ public class InventoryService {
         }
 
         while (remaining > 0) {
-            Integer slot = NormalInventoryLayout.findNextFreeSlot(usedSlots);
+            Integer slot = findNextFreeSlot(inventory, usedSlots);
             if (slot == null) {
                 break;
             }
@@ -2505,7 +2557,57 @@ public class InventoryService {
         };
     }
 
+    /**
+     * インベントリ種別に応じた使用済みスロットを収集します。
+     *
+     * @param inventory 対象インベントリ
+     * @return 使用済みスロット集合
+     */
+    private @NotNull Set<Integer> collectUsedSlots(@NotNull InventoryModel inventory) {
+        List<InventoryEntryModel> entries = getEntries(inventory.getInventoryId());
+        if (inventory.getInventoryType() != InventoryType.CURRENCY) {
+            return NormalInventoryLayout.collectUsedSlots(entries);
+        }
+
+        Set<Integer> usedSlots = new HashSet<>();
+        for (InventoryEntryModel entry : entries) {
+            Integer slotIndex = entry.getSlotIndex();
+            if (slotIndex != null && slotIndex > 0 && !entry.isDeleted()) {
+                usedSlots.add(slotIndex);
+            }
+        }
+        return usedSlots;
+    }
+
+    /**
+     * インベントリ種別に応じて次の空きスロットを返します。
+     *
+     * @param inventory 対象インベントリ
+     * @param usedSlots 使用済みスロット集合
+     * @return 空きスロット。上限に達している場合は null
+     */
+    private @Nullable Integer findNextFreeSlot(
+        @NotNull InventoryModel inventory,
+        @NotNull Set<Integer> usedSlots
+    ) {
+        if (inventory.getInventoryType() != InventoryType.CURRENCY) {
+            return NormalInventoryLayout.findNextFreeSlot(usedSlots);
+        }
+
+        int candidate = NormalInventoryLayout.DB_SLOT_START;
+        while (candidate > 0) {
+            if (!usedSlots.contains(candidate)) {
+                return candidate;
+            }
+            candidate++;
+        }
+        return null;
+    }
+
     private @Nullable Integer resolveSlotCapacity(@NotNull InventoryType inventoryType) {
+        if (inventoryType == InventoryType.CURRENCY) {
+            return null;
+        }
         return inventoryType.isSlotted() ? NormalInventoryLayout.CAPACITY : null;
     }
 
@@ -2564,7 +2666,7 @@ public class InventoryService {
             );
             default -> {
                 int amount = Math.max(1, itemStack.getAmount());
-                Set<Integer> usedSlots = NormalInventoryLayout.collectUsedSlots(getEntries(targetInventory.getInventoryId()));
+                Set<Integer> usedSlots = collectUsedSlots(targetInventory);
                 yield addStackedItems(targetInventory, model, amount, usedSlots, accountId) > 0;
             }
         };
@@ -2589,6 +2691,9 @@ public class InventoryService {
             return;
         }
         UUID accountId = astPlayer.getAccount().getUuid();
+        if (targetType == InventoryType.CURRENCY) {
+            return;
+        }
         if (getDisplayedInventoryType(accountId) == targetType) {
             applyDisplayedInventoryToGui(astPlayer);
             return;
@@ -2617,8 +2722,8 @@ public class InventoryService {
         if (instanceId == null) {
             return false;
         }
-        Set<Integer> usedSlots = NormalInventoryLayout.collectUsedSlots(getEntries(inventory.getInventoryId()));
-        Integer slot = NormalInventoryLayout.findNextFreeSlot(usedSlots);
+        Set<Integer> usedSlots = collectUsedSlots(inventory);
+        Integer slot = findNextFreeSlot(inventory, usedSlots);
         if (slot == null) {
             return false;
         }
@@ -2646,9 +2751,11 @@ public class InventoryService {
             ).thenComparing(InventoryEntryModel::getCreatedAt))
             .toList();
 
+        InventoryModel inventory = findCachedInventory(inventoryId);
+        boolean unlimitedSlots = inventory != null && inventory.getInventoryType() == InventoryType.CURRENCY;
         int next = NormalInventoryLayout.DB_SLOT_START;
         for (InventoryEntryModel entry : entries) {
-            if (next > NormalInventoryLayout.DB_SLOT_END) {
+            if (!unlimitedSlots && next > NormalInventoryLayout.DB_SLOT_END) {
                 break;
             }
             Integer current = entry.getSlotIndex();

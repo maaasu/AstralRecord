@@ -38,6 +38,5 @@ public final class MainMenuScreenView extends BaseMenuScreenView {
             Component.text("ガイド", NamedTextColor.LIGHT_PURPLE),
             List.of(Component.text("ヘルプを開く", NamedTextColor.GRAY))
         ));
-        inventory.setItem(CLOSE_SLOT, closeItem());
     }
 }

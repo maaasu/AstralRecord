@@ -63,7 +63,6 @@ public final class EquipmentMenuScreenView extends BaseMenuScreenView {
         inventory.setItem(EQUIPMENT_ACCESSORY_6_SLOT, itemOrPlaceholderForSlot(accessoryAt(accessories, 6), EQUIPMENT_ACCESSORY_6_SLOT));
         inventory.setItem(EQUIPMENT_ACCESSORY_7_SLOT, itemOrPlaceholderForSlot(accessoryAt(accessories, 7), EQUIPMENT_ACCESSORY_7_SLOT));
         inventory.setItem(BACK_SLOT, backItem());
-        inventory.setItem(CLOSE_SLOT, closeItem());
     }
 
     public @Nullable EquipmentType getEquipmentTypeAtSlot(int rawSlot) {

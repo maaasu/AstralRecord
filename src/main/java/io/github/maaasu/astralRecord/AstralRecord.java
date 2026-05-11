@@ -4,6 +4,9 @@ import io.github.maaasu.astralRecord.core.CommandRegister;
 import io.github.maaasu.astralRecord.core.event.EventManager;
 import io.github.maaasu.astralRecord.feature.account.repository.AccountRepository;
 import io.github.maaasu.astralRecord.feature.account.service.AccountService;
+import io.github.maaasu.astralRecord.feature.currency.service.CurrencyService;
+import io.github.maaasu.astralRecord.feature.gui.debug.PagingDebugGui;
+import io.github.maaasu.astralRecord.feature.gui.debug.event.PagingDebugGuiEventHandler;
 import io.github.maaasu.astralRecord.feature.hud.service.PlayerHudService;
 import io.github.maaasu.astralRecord.feature.item.event.ItemInteractionBlockEventHandler;
 import io.github.maaasu.astralRecord.feature.inventory.repository.InventoryRepository;
@@ -60,6 +63,7 @@ public final class AstralRecord extends JavaPlugin {
     private UserService userService;
     private PlayerService playerService;
     private InventoryService inventoryService;
+    private CurrencyService currencyService;
     private StatusService statusService;
     private StatusRegenTask statusRegenTask;
     private DodgeService dodgeService;
@@ -67,6 +71,7 @@ public final class AstralRecord extends JavaPlugin {
     private ResourcePackService resourcePackService;
     private MenuView menuView;
     private MenuShortcutRepository menuShortcutRepository;
+    private PagingDebugGui pagingDebugGui;
     private MobService mobService;
     private EventManager eventManager;
 
@@ -174,6 +179,7 @@ public final class AstralRecord extends JavaPlugin {
         var inventoryRepository = new InventoryRepository();
         var equipmentLoadoutRepository = new EquipmentLoadoutRepository();
         inventoryService = new InventoryService(inventoryRepository, equipmentLoadoutRepository, itemService, itemStackFactory);
+        currencyService = new CurrencyService(inventoryService);
 
         // status
         statusService = new StatusService();
@@ -202,6 +208,7 @@ public final class AstralRecord extends JavaPlugin {
         // menu
         menuShortcutRepository = new MenuShortcutRepository();
         menuView = new MenuView(this);
+        pagingDebugGui = new PagingDebugGui();
 
         // item & loot
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
@@ -245,11 +252,15 @@ public final class AstralRecord extends JavaPlugin {
             getServer().getPluginManager()
         );
         eventManager.registerHandler(
-            new MenuOpenEventHandler(this, menuView, menuShortcutRepository, inventoryService),
+            new MenuOpenEventHandler(this, menuView, menuShortcutRepository, inventoryService, currencyService),
             getServer().getPluginManager()
         );
         eventManager.registerHandler(
-            new InventoryEquipmentGuiEventHandler(menuView, inventoryService),
+            new InventoryEquipmentGuiEventHandler(menuView, inventoryService, currencyService),
+            getServer().getPluginManager()
+        );
+        eventManager.registerHandler(
+            new PagingDebugGuiEventHandler(pagingDebugGui, menuView),
             getServer().getPluginManager()
         );
         eventManager.registerHandler(
@@ -286,6 +297,33 @@ public final class AstralRecord extends JavaPlugin {
 
     public InventoryService getInventoryService() {
         return inventoryService;
+    }
+
+    /**
+     * 通貨サービスを取得します。
+     *
+     * @return 通貨サービス
+     */
+    public CurrencyService getCurrencyService() {
+        return currencyService;
+    }
+
+    /**
+     * メニュー GUI 表示ビューを取得します。
+     *
+     * @return メニュー GUI 表示ビュー
+     */
+    public MenuView getMenuView() {
+        return menuView;
+    }
+
+    /**
+     * ページング確認用のダミー GUI を取得します。
+     *
+     * @return ページング確認 GUI
+     */
+    public PagingDebugGui getPagingDebugGui() {
+        return pagingDebugGui;
     }
 
     public UserService getUserService() {
