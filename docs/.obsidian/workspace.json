@@ -4,21 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "b6a548cd0e4c4ca6",
+        "id": "69776ab97687dd1a",
         "type": "tabs",
         "children": [
           {
-            "id": "111438a99989aa21",
+            "id": "f52aff82be496b15",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "feature/07-status/07_README.md",
+                "file": "feature/04-item/4-統合フロー/04_4.00-統合フロー.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "07_README"
+              "title": "04_4.00-統合フロー"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "features/user/README.md",
+                "file": "feature/01-user/3-メソッド仕様/01_3.01-イベント.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "READMEへのバックリンク"
+              "title": "01_3.01-イベントへのバックリンク"
             }
           },
           {
@@ -113,11 +113,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
+                "file": "feature/01-user/3-メソッド仕様/01_3.01-イベント.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "アウトゴーイングリンク"
+              "title": "01_3.01-イベントからのアウトゴーイングリンク"
             }
           },
           {
@@ -155,16 +156,17 @@
             "state": {
               "type": "outline",
               "state": {
+                "file": "feature/04-item/4-統合フロー/04_4.00-統合フロー.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "アウトライン"
+              "title": "04_4.00-統合フローのアウトライン"
             }
           }
         ],
-        "currentTab": 1
+        "currentTab": 3
       }
     ],
     "direction": "horizontal",
@@ -181,47 +183,49 @@
       "command-palette:コマンドパレットを開く": false,
       "bases:新規ベースを作成": false,
       "obsidian-git:Open Git source control": false,
-      "templater-obsidian:Templater": false
+      "templater-obsidian:Templater": false,
+      "obsidian-excalidraw-plugin:New drawing": false,
+      "mermaid-tools:Open Mermaid Toolbar": false
     }
   },
-  "active": "111438a99989aa21",
+  "active": "2614d32499fa64fe",
   "lastOpenFiles": [
-    "temp/status.md",
-    "feature/07-status/07_README.md",
-    "feature/07-status/1-モデル定義/07_1.00-モデル定義.md",
-    "feature/07-status/3-メソッド仕様/07_3.01-サービス.md",
-    "feature/07-status/4-統合フロー/07_4.00-統合フロー.md",
-    "feature/07-status/2-ユースケース/07_2.00-ユースケース.md",
-    "feature/07-status/3-メソッド仕様/07_3.00-索引.md",
-    "feature/07-status/0-概要/07_0.00-概要.md",
-    "README.md",
-    "feature/01-user/3-メソッド仕様/01_3.02-サービス.md",
+    "Excalidraw/Drawing 2026-05-14 22.00.12.excalidraw.md",
+    "feature/04-item/4-統合フロー/04_4.00-統合フロー.md",
+    "Excalidraw",
+    "feature/04-item/5-例外・ログ・運用/04_5.00-例外・ログ・運用.md",
+    "feature/04-item/9-未決事項/04_9.00-未決事項.md",
+    "feature/04-item/3-メソッド仕様/04_3.01-イベント.md",
+    "feature/04-item/3-メソッド仕様/04_3.02-サービス.md",
+    "feature/03-player/4-統合フロー/03_4.00-統合フロー.md",
+    "feature/02-account/4-統合フロー/02_4.00-統合フロー.md",
+    "feature/01-user/4-統合フロー/01_4.00-統合フロー.md",
+    "Excalidraw/Drawing 2026-05-14 21.53.46.excalidraw.md",
+    "Excalidraw/Drawing 2026-05-14 21.52.25.excalidraw.md",
+    "feature/01-user/3-メソッド仕様/01_3.04-リポジトリ.md",
     "feature/01-user/0-概要/01_0.00-概要.md",
-    "feature/05-buff/1-モデル定義/05_1.00-モデル定義.md",
-    "feature/05-buff/2-ユースケース/05_2.00-ユースケース.md",
+    "feature/01-user/1-モデル定義/01_1.00-モデル定義.md",
+    "feature/01-user/2-ユースケース/01_2.00-ユースケース.md",
+    "feature/01-user/3-メソッド仕様/01_3.00-索引.md",
+    "feature/01-user/3-メソッド仕様/01_3.02-サービス.md",
+    "feature/01-user/3-メソッド仕様/01_3.01-イベント.md",
+    "feature/02-account/0-概要/02_0.00-概要.md",
+    "feature/03-player/2-ユースケース/03_2.00-ユースケース.md",
+    "feature/03-player/3-メソッド仕様/03_3.00-索引.md",
+    "feature/03-player/3-メソッド仕様/03_3.05-保存.md",
+    "feature/03-player/3-メソッド仕様/03_3.06-モデル操作.md",
+    "feature/04-item/3-メソッド仕様/04_3.08-アダプタ・リスナー.md",
     "feature/06-loot/4-統合フロー/06_4.00-統合フロー.md",
-    "feature/06-loot/9-未決事項/06_9.00-未決事項.md",
+    "feature/07-status/4-統合フロー/07_4.00-統合フロー.md",
     "feature/06-loot/9-未決事項/06_9.00-未決事項.md.tmp.22904.1778519464348",
     "feature/06-loot/9-未決事項",
-    "feature/06-loot/5-例外・ログ・運用/06_5.00-例外・ログ・運用.md",
     "feature/06-loot/5-例外・ログ・運用/06_5.00-例外・ログ・運用.md.tmp.22904.1778519452406",
     "feature/06-loot/5-例外・ログ・運用",
     "feature/06-loot/4-統合フロー/06_4.00-統合フロー.md.tmp.22904.1778519436241",
     "feature/06-loot/4-統合フロー",
-    "feature/06-loot/3-メソッド仕様/06_3.04-リポジトリ.md",
     "feature/06-loot/3-メソッド仕様/06_3.04-リポジトリ.md.tmp.22904.1778519423018",
-    "feature/06-loot/3-メソッド仕様/06_3.02-サービス.md",
     "feature/06-loot/3-メソッド仕様/06_3.02-サービス.md.tmp.22904.1778519406451",
-    "feature/06-loot/3-メソッド仕様/06_3.00-索引.md",
     "feature/06-loot/3-メソッド仕様/06_3.00-索引.md.tmp.22904.1778519391481",
-    "feature/06-loot/3-メソッド仕様",
-    "feature/06-loot/2-ユースケース/06_2.00-ユースケース.md",
-    "feature/06-loot/1-モデル定義/06_1.00-モデル定義.md",
-    "feature/06-loot/0-概要/06_0.00-概要.md",
-    "feature/06-loot/06_README.md",
-    "feature/05-buff/9-未決事項/05_9.00-未決事項.md",
-    "feature/05-buff/5-例外・ログ・運用/05_5.00-例外・ログ・運用.md",
-    "feature/05-buff/4-統合フロー/05_4.00-統合フロー.md",
     "無題のファイル.canvas"
   ]
 }
